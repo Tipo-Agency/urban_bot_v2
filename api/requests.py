@@ -215,6 +215,7 @@ class FitnessAuthRequest:
                 async with session.get(url, headers=headers) as response:
                     if response.status == 200:
                         data = await response.json()
+                        print(data)
                         return {
                             "subscription": {
                                 "id": data.get("id", ""),
