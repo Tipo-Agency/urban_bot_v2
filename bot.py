@@ -4,7 +4,7 @@ from aiogram.types import BotCommand
 from aiogram.client.default import DefaultBotProperties
 from aiogram.fsm.storage.memory import MemoryStorage
 from config import BOT_TOKEN
-from handlers import support_router, auth_router
+from handlers import support_router, auth_router, subscriptions_router
 from history import last_seen, chat_history, HISTORY_TIMEOUT
 import time
 import asyncio
@@ -16,7 +16,7 @@ dp = Dispatcher(storage=storage)
 bot = Bot(token=BOT_TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
 
 dp.include_router(auth_router)
-# dp.include_router(subscriptions_router)
+dp.include_router(subscriptions_router)
 dp.include_router(support_router)
 
 
