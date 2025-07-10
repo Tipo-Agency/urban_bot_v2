@@ -43,12 +43,12 @@ async def process_phone_text(message: Message, state: FSMContext):
     phone = message.text.strip()
     
     # Проверяем формат номера
-    if not re.match(r'^\+7\d{10}$', phone):
-        await message.answer(
-            "Неверный формат номера телефона.\n"
-            "Пожалуйста, введите номер в формате +7XXXXXXXXXX"
-        )
-        return
+    # if not re.match(r'^\+7\d{10}$', phone):
+    #     await message.answer(
+    #         "Неверный формат номера телефона.\n"
+    #         "Пожалуйста, введите номер в формате +7XXXXXXXXXX"
+    #     )
+    #     return
     
     await state.update_data(phone=phone)
     
