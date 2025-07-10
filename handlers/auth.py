@@ -5,7 +5,7 @@ from aiogram.fsm.context import FSMContext
 from keyboards import main_menu
 from db import get_user_token_by_user_id, create_or_update_user
 from aiogram.fsm.state import State, StatesGroup
-from api.requests import FitnessRequest
+from api.requests import FitnessAuthRequest
 import re
 
 router = Router()
@@ -55,7 +55,7 @@ async def process_phone_text(message: Message, state: FSMContext):
     await state.update_data(phone=phone)
     
     # Отправляем запрос на подтверждение телефона
-    fitness_request = FitnessRequest()
+    fitness_request = FitnessAuthRequest()
     result = await fitness_request.confirm_phone(int(phone[1:]), "")
     
     if result:
@@ -84,7 +84,7 @@ async def process_code(message: Message, state: FSMContext):
         return
     
     # Проверяем код
-    fitness_request = FitnessRequest()
+    fitness_request = FitnessAuthRequest()
     result = await fitness_request.confirm_phone(int(phone[1:]), code)
     
     if result and result.get('password_token'):
@@ -164,7 +164,7 @@ async def process_password(message: Message, state: FSMContext):
     birth_date = data.get('birth_date')
     
     # Создаем пользователя через API
-    fitness_request = FitnessRequest()
+    fitness_request = FitnessAuthRequest()
     print(password_token)
     result = await fitness_request.auth_and_register(
         pass_token=password_token,

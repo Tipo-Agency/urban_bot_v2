@@ -1,297 +1,240 @@
-# from aiogram import Router, F
-# from aiogram.types import Message, CallbackQuery
-# from aiogram.fsm.context import FSMContext
-# from aiogram.fsm.state import State, StatesGroup
-# from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton, ReplyKeyboardMarkup, KeyboardButton, ReplyKeyboardRemove
-# import uuid
-# import re
+from aiogram import Router, F
+from aiogram.types import Message, CallbackQuery
+from aiogram.fsm.context import FSMContext
+from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton, ReplyKeyboardMarkup, KeyboardButton, ReplyKeyboardRemove
 
-# from db import create_or_update_user, get_user_by_chat_id
-# from messages import GREET_MESSAGE, SELECT_ANOTHER, SUBSCRIPTION_VARIANTS, get_pay_message
-# from config import BASE_URL
-# from keyboards import main_menu
+from db import get_user_token_by_user_id
+from messages import GREET_MESSAGE, get_subscriptions_from_api
+from keyboards import main_menu, get_payment_keyboard
+from api.requests import FitnessAuthRequest
 
-# router = Router()
+router = Router()
 
-# class SubscriptionStates(StatesGroup):
-#     awaiting_fio = State()
-#     awaiting_phone = State()
-#     processing_payment = State()
 
-# def get_subscription_keyboard():
-#     """Создает клавиатуру с вариантами подписок"""
-#     keyboard = []
-#     for variant in SUBSCRIPTION_VARIANTS:
-#         keyboard.append([KeyboardButton(text=variant['description'])])
+async def get_subscription_keyboard(user_token: str = None):
+    """Создает клавиатуру с вариантами подписок из API"""
+    # Получаем реальные данные подписок
+    subscriptions = await get_subscriptions_from_api(user_token)
     
-#     # Добавляем кнопку возврата в главное меню
-#     keyboard.append([KeyboardButton(text="🏠 В главное меню")])
+    keyboard = []
+    for variant in subscriptions:
+        keyboard.append([KeyboardButton(text=variant['title'])])
     
-#     return ReplyKeyboardMarkup(
-#         keyboard=keyboard,
-#         resize_keyboard=True,
-#         one_time_keyboard=True
-#     )
+    # Добавляем кнопку возврата в главное меню
+    keyboard.append([KeyboardButton(text="🏠 В главное меню")])
+    
+    return ReplyKeyboardMarkup(
+        keyboard=keyboard,
+        resize_keyboard=True,
+        one_time_keyboard=True
+    ), subscriptions
 
-# def get_payment_keyboard(user_id: str):
-#     """Создает инлайн клавиатуру для оплаты"""
-#     url = f"{BASE_URL}/payment?token={user_id}"
-    
-#     return InlineKeyboardMarkup(
-#         inline_keyboard=[
-#             [InlineKeyboardButton(text="💳 Оплатить", url=url)],
-#             [InlineKeyboardButton(text="Выбрать другой тариф", callback_data="select_another")],
-#             [InlineKeyboardButton(text="🏠 В главное меню", callback_data="back_to_main")]
-#         ]
-#     )
 
-# def get_profile_keyboard():
-#     """Создает инлайн клавиатуру для личного кабинета"""
-#     return InlineKeyboardMarkup(
-#         inline_keyboard=[
-#             [InlineKeyboardButton(text="❌ Отменить подписку", callback_data="cancel_subscription")],
-#             [InlineKeyboardButton(text="🔄 Изменить тариф", callback_data="change_subscription")],
-#             [InlineKeyboardButton(text="🏠 В главное меню", callback_data="back_to_main")]
-#         ]
-#     )
+def get_buy_keyboard(subscription_id: str):
+    """Создает инлайн клавиатуру для покупки подписки"""
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text="💳 Купить подписку", callback_data=f"buy_subscription:{subscription_id}")],
+            [InlineKeyboardButton(text="🔙 Назад к подпискам", callback_data="back_to_subscriptions")]
+        ]
+    )
 
-# @router.message(F.text == "🏠 В главное меню")
-# async def back_to_main_menu_handler(message: Message, state: FSMContext):
-#     """Обработчик возврата в главное меню через текстовую кнопку"""
-#     await state.clear()
-    
-#     greeting_text = f"""
-# 🏠 <b>Главное меню</b>
 
-# Добро пожаловать, <b>{message.from_user.first_name}</b>!
-# Выберите, что вас интересует:
-# """
+@router.message(F.text == "🏠 В главное меню")
+async def back_to_main_menu_handler(message: Message, state: FSMContext):
+    """Обработчик возврата в главное меню"""
+    await state.clear()
     
-#     await message.answer(greeting_text, reply_markup=main_menu())
+    greeting_text = f"""
+🏠 <b>Главное меню</b>
 
-# @router.callback_query(F.data == "back_to_main")
-# async def back_to_main_callback_handler(callback: CallbackQuery, state: FSMContext):
-#     """Обработчик возврата в главное меню через callback кнопку"""
-#     await callback.answer()
-#     await state.clear()
+Добро пожаловать, <b>{message.from_user.first_name}</b>!
+Выберите, что вас интересует:
+"""
     
-#     greeting_text = f"""
-# 🏠 <b>Главное меню</b>
+    await message.answer(greeting_text, reply_markup=main_menu())
 
-# Добро пожаловать, <b>{callback.from_user.first_name}</b>!
-# Выберите, что вас интересует:
-# """
-    
-#     await callback.message.answer(greeting_text, reply_markup=main_menu())
-#     await callback.message.delete()
 
-# @router.message(F.text == "Личный кабинет")
-# async def profile_handler(message: Message):
-#     """Обработчик личного кабинета"""
-#     user_data = get_user_by_chat_id(message.chat.id)
+@router.callback_query(F.data == "back_to_main")
+async def back_to_main_callback_handler(callback: CallbackQuery, state: FSMContext):
+    """Обработчик возврата в главное меню через callback кнопку"""
+    await callback.answer()
+    await state.clear()
     
-#     if not user_data or not user_data.get('fio'):
-#         await message.answer("""
-# ❌ Вы еще не зарегистрированы в системе.
+    greeting_text = f"""
+🏠 <b>Главное меню</b>
 
-# Для начала оформите подписку через раздел "Подписки".
-# """, reply_markup=InlineKeyboardMarkup(
-#             inline_keyboard=[
-#                 [InlineKeyboardButton(text="💳 Оформить подписку", callback_data="go_to_subscriptions")],
-#                 [InlineKeyboardButton(text="🏠 В главное меню", callback_data="back_to_main")]
-#             ]
-#         ))
-#         return
+Добро пожаловать, <b>{callback.from_user.first_name}</b>!
+Выберите, что вас интересует:
+"""
     
-#     # Находим информацию о тарифе
-#     sub_type = user_data.get('sub_type', 1)
-#     subscription = next((s for s in SUBSCRIPTION_VARIANTS if s['id'] == sub_type), SUBSCRIPTION_VARIANTS[0])
-    
-#     # Получаем описание тарифа без первой строки (цены)
-#     description_lines = subscription['description'].split('\n')
-#     tariff_description = description_lines[1] if len(description_lines) > 1 else ''
-    
-#     profile_text = f"""
-# 👤 <b>Личный кабинет</b>
+    await callback.message.answer(greeting_text, reply_markup=main_menu())
+    await callback.message.delete()
 
-# 📋 <b>Ваши данные:</b>
-# • ФИО: {user_data['fio']}
-# • Телефон: {user_data['phone']}
 
-# 💳 <b>Текущий тариф:</b>
-# • {subscription['title']} — {subscription['price']} ₽/мес
-# • {tariff_description}
+@router.message(F.text == "Подписки")
+async def subscriptions_handler(message: Message, state: FSMContext):
+    """Обработчик раздела подписок"""
+    await state.clear()
+    
+    # Получаем user_token из базы данных пользователя
+    user_data = get_user_token_by_user_id(message.from_user.id)
+    user_token = user_data.get('user_token') if user_data else None
+    
+    keyboard, subscriptions = await get_subscription_keyboard(user_token)
+    await message.answer(GREET_MESSAGE, reply_markup=keyboard)
 
-# ℹ️ Управление подпиской:
-# """
-    
-#     await message.answer(profile_text, reply_markup=get_profile_keyboard())
 
-# @router.callback_query(F.data == "go_to_subscriptions")
-# async def go_to_subscriptions_handler(callback: CallbackQuery, state: FSMContext):
-#     """Переход к подпискам из личного кабинета"""
-#     await callback.answer()
-#     await state.clear()
+@router.callback_query(F.data == "back_to_subscriptions")
+async def back_to_subscriptions_handler(callback: CallbackQuery, state: FSMContext):
+    """Возврат к списку подписок"""
+    await callback.answer()
+    await state.clear()
     
-#     await callback.message.answer(GREET_MESSAGE, reply_markup=get_subscription_keyboard())
-#     await callback.message.delete()
+    # Получаем user_token из базы данных пользователя
+    user_data = get_user_token_by_user_id(callback.from_user.id)
+    user_token = user_data.get('user_token') if user_data else None
+    
+    keyboard, subscriptions = await get_subscription_keyboard(user_token)
+    await callback.message.answer(GREET_MESSAGE, reply_markup=keyboard)
+    await callback.message.delete()
 
-# @router.message(F.text == "Подписки")
-# async def subscriptions_handler(message: Message, state: FSMContext):
-#     await state.clear()
-#     await message.answer(GREET_MESSAGE, reply_markup=get_subscription_keyboard())
 
-# @router.message(F.text.in_([variant['description'] for variant in SUBSCRIPTION_VARIANTS]))
-# async def subscription_variant_handler(message: Message, state: FSMContext):
-#     """Обработка выбора варианта подписки"""
-#     # Находим выбранный тариф
-#     selected_variant = None
-#     for variant in SUBSCRIPTION_VARIANTS:
-#         if variant['description'] == message.text.strip():
-#             selected_variant = variant
-#             break
+@router.message(F.text.regexp(r".*"))
+async def subscription_variant_handler(message: Message, state: FSMContext):
+    """Обработка выбора варианта подписки"""
+    # Получаем актуальные данные подписок
+    user_data = get_user_token_by_user_id(message.from_user.id)
+    user_token = user_data.get('user_token') if user_data else None
+    subscriptions = await get_subscriptions_from_api(user_token)
     
-#     if not selected_variant:
-#         return
+    # Находим выбранный тариф по названию
+    selected_variant = None
+    for variant in subscriptions:
+        if variant['title'] == message.text.strip():
+            selected_variant = variant
+            break
     
-#     # Сохраняем выбранный тариф в состоянии
-#     await state.update_data(sub_type=selected_variant['id'])
+    if not selected_variant:
+        return
     
-#     # Проверяем, есть ли пользователь в базе
-#     user_data = get_user_by_chat_id(message.chat.id)
-    
-#     if user_data and user_data.get('fio') and user_data.get('phone'):
-#         # Пользователь уже есть, сразу создаем ссылку на оплату
-#         user_id = user_data['id']
+    # Получаем детальную информацию о подписке
+    try:
+        fitness_request = FitnessAuthRequest(user_token=user_token)
+        details = await fitness_request.get_subscription_details(user_token or "", selected_variant['sub_id'])
         
-#         # Обновляем тип подписки
-#         create_or_update_user(
-#             user_id=user_id,
-#             chat_id=message.chat.id,
-#             fio=user_data['fio'],
-#             phone=user_data['phone'],
-#             sub_type=selected_variant['id']
-#         )
-        
-#         pay_message = get_pay_message(selected_variant['title'], selected_variant['price'])
-        
-#         await message.answer(
-#             f"Тариф изменен на {selected_variant['title']}", 
-#             reply_markup=ReplyKeyboardRemove()
-#         )
-#         await message.answer(pay_message, reply_markup=get_payment_keyboard(user_id))
-#     else:
-#         # Новый пользователь, запрашиваем ФИО
-#         await state.set_state(SubscriptionStates.awaiting_fio)
-#         cancel_keyboard = InlineKeyboardMarkup(
-#             inline_keyboard=[
-#                 [InlineKeyboardButton(text="❌ Отмена", callback_data="back_to_main")]
-#             ]
-#         )
-#         await message.answer("Введите ваше ФИО:", reply_markup=cancel_keyboard)
+        if details and details.get("subscription"):
+            sub_details = details["subscription"]
+            
+            # Формируем подробное описание
+            description = f"""
+💳 <b>{sub_details.get('title', selected_variant['title'])}</b>
 
-# @router.message(SubscriptionStates.awaiting_fio)
-# async def process_fio(message: Message, state: FSMContext):
-#     """Обработка ввода ФИО"""
-#     fio = message.text.strip()
-#     await state.update_data(fio=fio)
-#     await state.set_state(SubscriptionStates.awaiting_phone)
-    
-#     cancel_keyboard = InlineKeyboardMarkup(
-#         inline_keyboard=[
-#             [InlineKeyboardButton(text="❌ Отмена", callback_data="back_to_main")]
-#         ]
-#     )
-#     await message.answer("Введите ваш номер телефона (в формате +7XXXXXXXXXX):", reply_markup=cancel_keyboard)
+💰 <b>Стоимость:</b> {sub_details.get('price', selected_variant['price'])} ₽/мес
 
-# @router.message(SubscriptionStates.awaiting_phone)
-# async def process_phone(message: Message, state: FSMContext):
-#     """Обработка ввода телефона"""
-#     phone = message.text.strip()
-    
-#     # Проверяем формат телефона
-#     phone_regex = r'^\+7\d{10}$'
-#     if not re.match(phone_regex, phone):
-#         cancel_keyboard = InlineKeyboardMarkup(
-#             inline_keyboard=[
-#                 [InlineKeyboardButton(text="❌ Отмена", callback_data="back_to_main")]
-#             ]
-#         )
-#         await message.answer("Неверный формат номера. Попробуйте снова (например, +71234567890).", 
-#                            reply_markup=cancel_keyboard)
-#         return
-    
-#     # Получаем данные из состояния
-#     data = await state.get_data()
-#     fio = data.get('fio')
-#     sub_type = data.get('sub_type', 1)
-    
-#     # Проверяем, есть ли пользователь в базе
-#     existing_user = get_user_by_chat_id(message.chat.id)
-#     user_id = existing_user['id'] if existing_user else str(uuid.uuid1())
-    
-#     # Сохраняем/обновляем пользователя в базе
-#     create_or_update_user(
-#         user_id=user_id,
-#         chat_id=message.chat.id,
-#         fio=fio,
-#         phone=phone,
-#         sub_type=sub_type
-#     )
-    
-#     # Находим выбранный тариф
-#     selected_variant = next((v for v in SUBSCRIPTION_VARIANTS if v['id'] == sub_type), SUBSCRIPTION_VARIANTS[0])
-    
-#     # Генерируем сообщение для оплаты
-#     pay_message = get_pay_message(selected_variant['title'], selected_variant['price'])
-    
-#     await state.set_state(SubscriptionStates.processing_payment)
-#     await message.answer(pay_message, reply_markup=get_payment_keyboard(user_id))
+📋 <b>Описание:</b>
+{sub_details.get('description', 'Описание недоступно')}
 
-# @router.callback_query(F.data == "select_another")
-# async def select_another_handler(callback: CallbackQuery, state: FSMContext):
-#     """Обработка кнопки 'Выбрать другой тариф'"""
-#     await callback.answer()
-#     await state.clear()
-    
-#     await callback.message.answer(SELECT_ANOTHER, reply_markup=get_subscription_keyboard())
-#     await callback.message.delete()
+⏰ <b>Время доступа:</b>
+{sub_details.get('available_time', 'Не указано')}
 
-# @router.callback_query(F.data == "cancel_subscription")
-# async def cancel_subscription_handler(callback: CallbackQuery):
-#     """Обработка отмены подписки"""
-#     await callback.answer()
-    
-#     cancel_text = """
-# ❌ <b>Отмена подписки</b>
+📅 <b>Период действия:</b>
+{sub_details.get('validity_period', 'Не указано')}
 
-# Для отмены подписки свяжитесь с менеджером клуба:
-# 📞 Телефон: +7 (xxx) xxx-xx-xx
-# 💬 Telegram: @manager_username
+⚠️ <b>Ограничения:</b>
+{sub_details.get('restriction', 'Нет ограничений')}
+"""
+            
+            # Добавляем информацию о вступительном взносе
+            if sub_details.get('fee'):
+                fee = sub_details['fee']
+                description += f"\n💸 <b>Вступительный взнос:</b> {fee.get('price', '3000')} ₽"
+            
+            await message.answer(
+                description, 
+                reply_markup=get_buy_keyboard(selected_variant['sub_id'])
+            )
+        else:
+            # Если детали не получены, показываем базовую информацию
+            basic_info = f"""
+💳 <b>{selected_variant['title']}</b>
 
-# Либо обратитесь в отдел продаж при посещении клуба.
+💰 <b>Стоимость:</b> {selected_variant['price']} ₽/мес
 
-# ⚠️ <b>Важно:</b> отмена подписки вступает в силу с начала следующего расчетного периода.
-# """
-    
-#     back_keyboard = InlineKeyboardMarkup(
-#         inline_keyboard=[
-#             [InlineKeyboardButton(text="🏠 В главное меню", callback_data="back_to_main")]
-#         ]
-#     )
-    
-#     await callback.message.answer(cancel_text, reply_markup=back_keyboard)
+📋 <b>Описание:</b>
+{selected_variant['description']}
 
-# @router.callback_query(F.data == "change_subscription")
-# async def change_subscription_handler(callback: CallbackQuery, state: FSMContext):
-#     """Обработка изменения тарифа"""
-#     await callback.answer()
-#     await state.clear()
+💸 <b>Вступительный взнос:</b> 3000 ₽
+"""
+            await message.answer(
+                basic_info, 
+                reply_markup=get_buy_keyboard(selected_variant['sub_id'])
+            )
+            
+    except Exception as e:
+        print(f"Ошибка получения деталей подписки: {e}")
+        # Показываем базовую информацию при ошибке
+        basic_info = f"""
+💳 <b>{selected_variant['title']}</b>
+
+💰 <b>Стоимость:</b> {selected_variant['price']} ₽/мес
+
+📋 <b>Описание:</b>
+{selected_variant['description']}
+
+💸 <b>Вступительный взнос:</b> 3000 ₽
+"""
+        await message.answer(
+            basic_info, 
+            reply_markup=get_buy_keyboard(selected_variant['sub_id'])
+        )
+
+
+@router.callback_query(F.data.regexp(r"^buy_subscription:(.+)$"))
+async def buy_subscription_handler(callback: CallbackQuery, state: FSMContext):
+    """Обработка покупки подписки"""
+    await callback.answer()
     
-#     await callback.message.answer(
-#         "Выберите новый тариф:", 
-#         reply_markup=get_subscription_keyboard()
-#     )
-#     await callback.message.delete()
+    subscription_id = callback.data.split(":")[1]
+    
+    # Получаем данные пользователя
+    user_data = get_user_token_by_user_id(callback.from_user.id)
+    
+    # Создаем ссылку на оплату
+    user_id = callback.from_user.id
+    
+    # Получаем информацию о подписке для отображения цены
+    user_token = user_data.get('user_token') if user_data else None
+    subscriptions = await get_subscriptions_from_api(user_token)
+    selected_subscription = next((s for s in subscriptions if s['sub_id'] == subscription_id), None)
+    
+    if selected_subscription:
+        pay_message = f"""
+💳 <b>Оформление подписки</b>
+
+Вы выбрали: <b>{selected_subscription['title']}</b>
+
+💰 <b>К оплате:</b>
+• Вступительный взнос: 3000 ₽ (разово)
+• Абонемент на месяц: {selected_subscription['price']} ₽
+—————————————
+ИТОГО: {3000 + selected_subscription['price']} ₽
+
+⬇️ Нажмите на кнопку ниже, чтобы оплатить:
+"""
+    else:
+        pay_message = """
+💳 <b>Оформление подписки</b>
+
+💰 <b>К оплате:</b>
+• Вступительный взнос: 3000 ₽ (разово)
+• Абонемент на месяц: уточняется
+—————————————
+ИТОГО: уточняется
+
+⬇️ Нажмите на кнопку ниже, чтобы оплатить:
+"""
+    
+    await callback.message.answer(pay_message, reply_markup=get_payment_keyboard(user_id))
 
 

@@ -5,11 +5,12 @@ from aiohttp import BasicAuth, ClientSession, ClientTimeout
 load_dotenv()
 
 
-class FitnessRequest:
+class FitnessAuthRequest:
     BASE_URL = "http://212.19.27.201/urban210/hs/api/v3"
     API_KEY = os.getenv("1C_API_KEY", "")  # Добавляем значение по умолчанию
     USERNAME = os.getenv("1C_USERNAME", "Adminbot")  # Добавляем значение по умолчанию
     PASSWORD = os.getenv("1C_PASSWORD", "RekBOT*012G")  # Добавляем значение по умолчанию
+    PROXY_URL = "http://46.19.64.193:8444"
     
     # Проверяем, что значения не None перед созданием BasicAuth
     if USERNAME and PASSWORD:
@@ -54,14 +55,18 @@ class FitnessRequest:
             "password": password
         }
 
-        async with ClientSession(auth=self.auth, timeout=self.timeout) as session:
-            async with session.post(url, headers=headers, json=data) as response:
-                if response.status == 200:
-                    return await response.json()
-                else:
-                    print(f"Error: {response.status}")
-                    print(await response.text())
-                    return None
+        try:
+            async with ClientSession(auth=self.auth, timeout=self.timeout) as session:
+                async with session.post(url, headers=headers, json=data) as response:
+                    if response.status == 200:
+                        return await response.json()
+                    else:
+                        print(f"Error: {response.status}")
+                        print(await response.text())
+                        return None
+        except Exception as e:
+            print(f"Connection error: {e}")
+            return None
                 
     async def auth_and_register(self, phone: int, password: str, last_name: str, name: str, second_name: str, email: str, birth_date: str, pass_token: str = None, autopassword_to_sms: bool = False):
         url = f"{self.BASE_URL}/reg_and_auth_client"
@@ -80,15 +85,19 @@ class FitnessRequest:
             "birth_date": birth_date,
             "autopassword_to_sms": autopassword_to_sms
         }
-        print(data)
-        async with ClientSession(auth=self.auth, timeout=self.timeout) as session:
-            async with session.post(url, headers=headers, json=data) as response:
-                if response.status == 200:
-                    return await response.json()
-                else:
-                    print(f"Error: {response.status}")
-                    print(await response.text())
-                    return None
+        try:
+            async with ClientSession(auth=self.auth, timeout=self.timeout) as session:
+                async with session.post(url, headers=headers, json=data) as response:
+                    if response.status == 200:
+                        return await response.json()
+                    else:
+                        print(f"Error Code: {response.status}")
+                        print(await response.text())
+                        return None
+        except Exception as e:
+            print(f"Connection error: {e}")
+            return None
+        
     async def confirm_phone(self, phone: int, code: str):
         url = f"{self.BASE_URL}/confirm_phone"
         if not code:
@@ -165,3 +174,68 @@ class FitnessRequest:
         except Exception as e:
             print(f"Connection error: {e}")
             return None
+        
+    async def get_subscriptions(self):
+        url = f"{self.BASE_URL}/price_list?type=membership&club_id=b5f85d29-6727-11e9-80cb-00155d066506"
+        headers = {
+            "apikey": self.API_KEY or "",
+            "usertoken": self.user_token or ""
+        }
+        try:
+            async with ClientSession(auth=self.auth, timeout=self.timeout) as session:
+                async with session.get(url, headers=headers) as response:
+                    if response.status == 200:
+                        data = await response.json()
+                        return {
+                            "subscriptions": [
+                                {
+                                    "id": item.get("id", ""),
+                                    "title": item.get("title", ""),
+                                    "price": item.get("price", ""),
+                                    "available_time": item.get("available_time", "")
+                                }
+                                for item in data.get("data", [])
+                            ]
+                        }
+                    else:
+                        print(f"Error: {response.status}")
+                        return None
+        except Exception as e:
+            print(f"Connection error: {e}")
+            return None
+                
+    async def get_subscription_details(self, subscription_id: str):
+        url = f"{self.BASE_URL}/price_list?type=membership&club_id=b5f85d29-6727-11e9-80cb-00155d066506&service_id={subscription_id}"
+        headers = {
+            "apikey": self.API_KEY or "",
+            "usertoken": self.user_token or ""
+        }
+        try:
+            async with ClientSession(auth=self.auth, timeout=self.timeout) as session:
+                async with session.get(url, headers=headers) as response:
+                    if response.status == 200:
+                        data = await response.json()
+                        return {
+                            "subscription": {
+                                "id": data.get("id", ""),
+                                "title": data.get("title", ""),
+                                "description": data.get("description", ""),
+                                "price": data.get("price", ""),
+                                "available_time": data.get("available_time", ""),
+                                "validity_period": data.get("validity", {}).get("validity_description", ""),
+                                "restriction": data.get("restriction", ""),
+                                "fee": {
+                                    "id": data.get("fee", {}).get("id", ""),
+                                    "title": data.get("fee", {}).get("title", ""),
+                                    "price": data.get("fee", {}).get("price", ""),
+                                }
+                            }
+                        }
+                    else:
+                        print(f"Error: {response.status}")
+                        return None
+        except Exception as e:
+            print(f"Connection error: {e}")
+            return None
+
+

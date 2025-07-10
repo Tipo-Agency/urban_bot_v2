@@ -35,26 +35,76 @@ def get_pay_message(title: str, price: int) -> str:
 ⬇️ Нажмите на кнопку ниже, чтобы оплатить:
 """
 
-SUBSCRIPTION_VARIANTS = [
-    {
-        "id": 1,
-        "title": "SmartFit",
-        "description": "SmartFit — 1300 ₽/мес\nДоступ: 07:00–17:30, 20:30–23:30",
-        "price": 1300,
-    },
-    {
-        "id": 2,
-        "title": "FitFlow", 
-        "description": "FitFlow — 1700 ₽/мес\nБезлимитный доступ в любое время",
-        "price": 1700,
-    },
-    {
-        "id": 3,
-        "title": "ProFit",
-        "description": "ProFit — 2400 ₽/мес\nБезлимит + групповые программы",
-        "price": 2400,
-    },
-]
+# Функция для получения реальных подписок из API
+async def get_subscriptions_from_api(user_token: str = None):
+    """Получает реальные данные подписок из API"""
+    try:
+        from api.requests import FitnessAuthRequest
+        
+        fitness_request = FitnessAuthRequest(user_token)
+        result = await fitness_request.get_subscriptions()
+        
+        if result and result.get("subscriptions"):
+            # Преобразуем данные API в формат, совместимый с текущим кодом
+            subscriptions = []
+            for i, sub in enumerate(result["subscriptions"], 1):
+                # Извлекаем цену из строки (предполагаем формат "XXXX ₽")
+                price_str = sub.get("price", "0")
+                price = int(''.join(filter(str.isdigit, price_str))) if price_str else 0
+                
+                # Формируем описание
+                available_time = sub.get("available_time", "")
+                description = f"{sub.get('title', 'Тариф')} — {price} ₽/мес"
+                if available_time:
+                    description += f"\n{available_time}"
+                
+                subscriptions.append({
+                    "id": i,
+                    "sub_id": sub.get("id", ""),  # Сохраняем оригинальный ID из API
+                    "title": sub.get("title", "Тариф"),
+                    "description": description,
+                    "price": price,
+                    "available_time": available_time
+                })
+            
+            return subscriptions
+        else:
+            # Возвращаем дефолтные данные если API недоступен
+            return get_default_subscriptions()
+            
+    except Exception as e:
+        print(f"Ошибка получения подписок из API: {e}")
+        # Возвращаем дефолтные данные при ошибке
+        return get_default_subscriptions()
+
+def get_default_subscriptions():
+    """Возвращает дефолтные данные подписок"""
+    return [
+        {
+            "id": 1,
+            "sub_id": "default_1",
+            "title": "SmartFit",
+            "description": "SmartFit — 1300 ₽/мес\nДоступ: 07:00–17:30, 20:30–23:30",
+            "price": 1300,
+        },
+        {
+            "id": 2,
+            "sub_id": "default_2", 
+            "title": "FitFlow",
+            "description": "FitFlow — 1700 ₽/мес\nБезлимитный доступ в любое время",
+            "price": 1700,
+        },
+        {
+            "id": 3,
+            "sub_id": "default_3",
+            "title": "ProFit",
+            "description": "ProFit — 2400 ₽/мес\nБезлимит + групповые программы",
+            "price": 2400,
+        },
+    ]
+
+# Дефолтные варианты подписок (используются как fallback)
+SUBSCRIPTION_VARIANTS = get_default_subscriptions()
 
 MASSIVE_SUCCESS = """
 🎉 Отлично! Подписка успешно оформлена!
