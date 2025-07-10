@@ -69,7 +69,6 @@ class FitnessRequest:
         if code:
             headers = {
                 "apikey": self.API_KEY or "",
-                "usertoken": self.user_token or "",
                 "Content-Type": "application/json"
             }
             data = {
