@@ -73,7 +73,7 @@ class FitnessRequest:
             }
             data = {
                 "phone": phone,
-                "code": code,
+                "confirmation_code": code,
                 "auth_type": "whats_app"
             }
             try:
@@ -90,6 +90,7 @@ class FitnessRequest:
                                 return None
                         else:
                             print(f"Error: {response.status}")
+                            print(await response.text())
                             return None
             except Exception as e:
                 print(f"Connection error: {e}")
