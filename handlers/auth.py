@@ -165,6 +165,7 @@ async def process_password(message: Message, state: FSMContext):
     
     # Создаем пользователя через API
     fitness_request = FitnessRequest()
+    print(password_token)
     result = await fitness_request.auth_and_register(
         pass_token=password_token,
         password=password,
