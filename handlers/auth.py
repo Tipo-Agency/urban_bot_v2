@@ -159,6 +159,7 @@ async def process_password(message: Message, state: FSMContext):
     if result:
         # Сохраняем пользователя в базу данных
         user_id = message.from_user.id
+        print(result)
         user_token = result.get("data", {}).get("user_token", "")
         
         if user_token:
