@@ -80,6 +80,7 @@ class FitnessRequest:
             "pass_token": pass_token,
             "autopassword_to_sms": autopassword_to_sms
         }
+        print(data)
         async with ClientSession(auth=self.auth, timeout=self.timeout) as session:
             async with session.post(url, headers=headers, json=data) as response:
                 if response.status == 200:
