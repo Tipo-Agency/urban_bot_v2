@@ -7,7 +7,7 @@ load_dotenv()
 
 class FitnessRequest:
     BASE_URL = "http://212.19.27.201/urban210/hs/api/v3"
-    API_KEY = os.getenv("1C_API_KEY")  # или просто подставь строку
+    API_KEY = os.getenv("1C_API_KEY", "")  # Добавляем значение по умолчанию
     USERNAME = os.getenv("1C_USERNAME", "Adminbot")  # Добавляем значение по умолчанию
     PASSWORD = os.getenv("1C_PASSWORD", "RekBOT*012G")  # Добавляем значение по умолчанию
     
@@ -27,8 +27,8 @@ class FitnessRequest:
     async def get_client(self):
         url = f"{self.BASE_URL}/client"
         headers = {
-            "apikey": self.API_KEY,
-            "usertoken": self.user_token
+            "apikey": self.API_KEY or "",
+            "usertoken": self.user_token or ""
         }
         try:
             async with ClientSession(auth=self.auth, timeout=self.timeout) as session:
@@ -47,8 +47,8 @@ class FitnessRequest:
         url = f"{self.BASE_URL}/confirm_phone"
         if not code:
             headers = {
-                "apikey": self.API_KEY,
-                "usertoken": self.user_token,
+                "apikey": self.API_KEY or "",
+                "usertoken": self.user_token or "",
                 "Content-Type": "application/json"
             }
             data = {
@@ -68,8 +68,8 @@ class FitnessRequest:
                 return None
         if code:
             headers = {
-                "apikey": self.API_KEY,
-                "usertoken": self.user_token,
+                "apikey": self.API_KEY or "",
+                "usertoken": self.user_token or "",
                 "Content-Type": "application/json"
             }
             data = {
@@ -98,7 +98,7 @@ class FitnessRequest:
         url = f"{self.BASE_URL}/password"
         headers = {
             "Content-Type": "application/json",
-            "apikey": self.API_KEY,
+            "apikey": self.API_KEY or "",
         }
         data = {
         "pass_token": pass_token,
