@@ -42,7 +42,7 @@ async def get_subscriptions_from_api(user_token: str = None):
         from api.requests import FitnessAuthRequest
         
         fitness_request = FitnessAuthRequest(user_token)
-        result = await fitness_request.get_subscriptions()
+        result = await fitness_request.get_subscriptions(user_token)
         
         if result and result.get("subscriptions"):
             # Преобразуем данные API в формат, совместимый с текущим кодом

@@ -175,11 +175,11 @@ class FitnessAuthRequest:
             print(f"Connection error: {e}")
             return None
         
-    async def get_subscriptions(self):
+    async def get_subscriptions(self, user_token: str = None):
         url = f"{self.BASE_URL}/price_list?type=membership&club_id=b5f85d29-6727-11e9-80cb-00155d066506"
         headers = {
             "apikey": self.API_KEY or "",
-            "usertoken": self.user_token or ""
+            "usertoken": user_token or self.user_token or ""
         }
         try:
             async with ClientSession(auth=self.auth, timeout=self.timeout) as session:

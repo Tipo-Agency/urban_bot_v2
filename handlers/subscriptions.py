@@ -121,7 +121,7 @@ async def subscription_variant_handler(message: Message, state: FSMContext):
     # Получаем детальную информацию о подписке
     try:
         fitness_request = FitnessAuthRequest(user_token=user_token)
-        details = await fitness_request.get_subscription_details(user_token or "", selected_variant['sub_id'])
+        details = await fitness_request.get_subscription_details(selected_variant['sub_id'])
         
         if details and details.get("subscription"):
             sub_details = details["subscription"]
