@@ -15,7 +15,7 @@ async def test_fitness_request():
     
     # Тест 1: Отправка кода подтверждения
     print("\n1. Тестирование отправки кода подтверждения...")
-    phone = 79242231931  # Замените на реальный номер для тестирования
+    phone = 998998446573  # Замените на реальный номер для тестирования
     result = await fitness_request.confirm_phone(phone, "")
     
     if result:
