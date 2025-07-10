@@ -78,7 +78,7 @@ class FitnessRequest:
             }
             try:
                 async with ClientSession(auth=self.auth, timeout=self.timeout) as session:
-                    async with session.post(url, headers=headers, data=data) as response:
+                    async with session.post(url, headers=headers, json=data) as response:
                         if response.status == 200:
                             result = await response.json()
                             print(result)
