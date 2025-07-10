@@ -215,23 +215,29 @@ class FitnessAuthRequest:
                 async with session.get(url, headers=headers) as response:
                     if response.status == 200:
                         data = await response.json()
-                        print(data)
-                        return {
-                            "subscription": {
-                                "id": data.get("id", ""),
-                                "title": data.get("title", ""),
-                                "description": data.get("description", ""),
-                                "price": data.get("price", ""),
-                                "available_time": data.get("available_time", ""),
-                                "validity_period": data.get("validity", {}).get("validity_description", ""),
-                                "restriction": data.get("restriction", ""),
-                                "fee": {
-                                    "id": data.get("fee", {}).get("id", ""),
-                                    "title": data.get("fee", {}).get("title", ""),
-                                    "price": data.get("fee", {}).get("price", ""),
-                                }
+                        # Получаем первый элемент из списка подписок (обычно он один)
+                        subscription_data = (data.get("data") or [{}])[0]
+
+                        # Извлекаем данные о вступительном взносе, если есть
+                        fee_data = subscription_data.get("fee") or {}
+
+                        # Формируем красивый и понятный словарь с деталями подписки
+                        subscription = {
+                            "id": subscription_data.get("id", ""),
+                            "title": subscription_data.get("title", ""),
+                            "description": subscription_data.get("description", ""),
+                            "price": subscription_data.get("price", ""),
+                            "available_time": subscription_data.get("available_time", ""),
+                            "validity_period": (subscription_data.get("validity") or {}).get("validity_description", ""),
+                            "restriction": subscription_data.get("restriction", ""),
+                            "fee": {
+                                "id": fee_data.get("id", ""),
+                                "title": fee_data.get("title", ""),
+                                "price": fee_data.get("price", ""),
                             }
                         }
+
+                        return {"subscription": subscription}
                     else:
                         print(f"Error: {response.status}")
                         return None
