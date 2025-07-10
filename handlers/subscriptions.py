@@ -5,7 +5,7 @@ from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton, ReplyKeybo
 
 from db import get_user_token_by_user_id
 from messages import GREET_MESSAGE, get_subscriptions_from_api
-from keyboards import main_menu, get_payment_keyboard
+from keyboards import main_menu
 from api.requests import FitnessAuthRequest
 
 router = Router()
@@ -235,6 +235,6 @@ async def buy_subscription_handler(callback: CallbackQuery, state: FSMContext):
 ⬇️ Нажмите на кнопку ниже, чтобы оплатить:
 """
     
-    await callback.message.answer(pay_message, reply_markup=get_payment_keyboard(user_id))
+    await callback.message.answer(pay_message, reply_markup=get_buy_keyboard(user_id))
 
 
