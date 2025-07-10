@@ -64,7 +64,7 @@ class FitnessRequest:
                     return None
                 
     async def auth_and_register(self, phone: int, password: str, last_name: str, name: str, second_name: str, email: str, birth_date: str, pass_token: str = None, autopassword_to_sms: bool = False):
-        url = f"{self.BASE_URL}/auth_and_register"
+        url = f"{self.BASE_URL}/reg_and_auth_client"
         headers = {
             "Content-Type": "application/json",
             "apikey": self.API_KEY or "",
@@ -72,12 +72,12 @@ class FitnessRequest:
         data = {
             "phone": phone,
             "password": password,
+            "pass_token": pass_token,
             "last_name": last_name,
             "name": name,
             "second_name": second_name,
             "email": email,
             "birth_date": birth_date,
-            "pass_token": pass_token,
             "autopassword_to_sms": autopassword_to_sms
         }
         print(data)
