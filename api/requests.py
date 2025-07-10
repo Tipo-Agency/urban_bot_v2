@@ -42,6 +42,25 @@ class FitnessRequest:
         except Exception as e:
             print(f"Connection error: {e}")
             return None
+        
+    async def auth_client(self, phone: int, password: str):
+        url = f"{self.BASE_URL}/auth_client"
+        headers = {
+            "Content-Type": "application/json",
+            "apikey": self.API_KEY or "",
+        }
+        data = {
+            "phone": phone,
+            "password": password
+        }
+
+        async with ClientSession(auth=self.auth, timeout=self.timeout) as session:
+            async with session.post(url, headers=headers, json=data) as response:
+                if response.status == 200:
+                    return await response.json()
+                else:
+                    print(f"Error: {response.status}")
+                    return None
             
     async def confirm_phone(self, phone: int, code: str):
         url = f"{self.BASE_URL}/confirm_phone"
