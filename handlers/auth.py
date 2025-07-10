@@ -148,7 +148,7 @@ async def process_password(message: Message, state: FSMContext):
     # Создаем пользователя через API
     fitness_request = FitnessRequest()
     result = await fitness_request.set_password(
-        password_token=password_token,
+        pass_token=password_token,
         password=password,
         phone=int(phone[1:]),
         last_name=last_name,

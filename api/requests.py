@@ -84,13 +84,11 @@ class FitnessRequest:
                             print(result)
                             pass_token = result.get("data", {}).get("pass_token", "")
                             if pass_token:
-                                print(f"Password token: {pass_token}")
                                 return {"password_token": pass_token}
                             else:
                                 return None
                         else:
                             print(f"Error: {response.status}")
-                            print(await response.text())
                             return None
             except Exception as e:
                 print(f"Connection error: {e}")
@@ -111,7 +109,6 @@ class FitnessRequest:
         "name": name,
         "second_name": second_name
         }
-        import json
         try:
             async with ClientSession(auth=self.auth, timeout=self.timeout) as session:
                 async with session.post(url, headers=headers, json=data) as response:
