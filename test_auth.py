@@ -103,7 +103,7 @@ async def main():
     
     # Тест базы данных
     # test_database()
-    test_fitness_request()
+    await test_fitness_request()
     
     # Тест API (раскомментируйте для тестирования с реальным API)
     # await test_fitness_request()
