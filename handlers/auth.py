@@ -16,6 +16,8 @@ class AuthStates(StatesGroup):
     last_name = State()
     name = State()
     second_name = State()
+    email = State()
+    birth_date = State()
     password = State()
 
 @router.message(Command("start"))
@@ -122,8 +124,22 @@ async def process_second_name(message: Message, state: FSMContext):
     
     await state.update_data(second_name=second_name)
     await message.answer(
-        "Придумайте пароль для вашего аккаунта (минимум 6 символов):"
+        "Введите вашу электронную почту:"
     )
+    await state.set_state(AuthStates.email)
+
+@router.message(AuthStates.email, F.text)
+async def process_email(message: Message, state: FSMContext):
+    email = message.text.strip()
+    await state.update_data(email=email)
+    await message.answer("Введите вашу дату рождения (в формате ДД.ММ.ГГГГ):")
+    await state.set_state(AuthStates.birth_date)
+
+@router.message(AuthStates.birth_date, F.text)
+async def process_birth_date(message: Message, state: FSMContext):
+    birth_date = message.text.strip()
+    await state.update_data(birth_date=birth_date)
+    await message.answer("Придумайте пароль для вашего аккаунта (минимум 6 символов):")
     await state.set_state(AuthStates.password)
 
 @router.message(AuthStates.password, F.text)
@@ -144,22 +160,26 @@ async def process_password(message: Message, state: FSMContext):
     last_name = data.get('last_name')
     name = data.get('name')
     second_name = data.get('second_name')
+    email = data.get('email')
+    birth_date = data.get('birth_date')
     
     # Создаем пользователя через API
     fitness_request = FitnessRequest()
-    result = await fitness_request.set_password(
+    result = await fitness_request.auth_and_register(
         pass_token=password_token,
         password=password,
         phone=int(phone[1:]),
         last_name=last_name,
         name=name,
-        second_name=second_name
+        second_name=second_name,
+        email=email,
+        birth_date=birth_date,
     )
     
     if result:
         # Сохраняем пользователя в базу данных
         user_id = message.from_user.id
-        result = await fitness_request.auth_client(int(phone[1:]), password)
+        # result = await fitness_request.auth_client(int(phone[1:]), password)
         print(result)
         user_token = result.get("data", {}).get("user_token", "")
         
