@@ -81,7 +81,8 @@ class FitnessRequest:
                 async with ClientSession(auth=self.auth, timeout=self.timeout) as session:
                     async with session.post(url, headers=headers, json=data) as response:
                         if response.status == 200:
-                            pass_token = await response.json().get("pass_token")
+                            result = await response.json()
+                            pass_token = result.get("data", {}).get("pass_token", "")
                             if pass_token:
                                 return {"password_token": pass_token}
                             else:
