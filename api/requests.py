@@ -60,6 +60,7 @@ class FitnessRequest:
                     return await response.json()
                 else:
                     print(f"Error: {response.status}")
+                    print(await response.text())
                     return None
             
     async def confirm_phone(self, phone: int, code: str):
