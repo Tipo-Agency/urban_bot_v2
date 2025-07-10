@@ -25,7 +25,7 @@ async def start_handler(message: Message, state: FSMContext):
     
     # Если в БД есть user_token - пользователь авторизован
     if user_data and user_data.get('user_token'):
-        await message.answer("Вы уже авторизованы!", reply_markup=main_menu)
+        await message.answer("Вы уже авторизованы!", reply_markup=main_menu())
         return
     
     # Если user_token нет - начинаем процесс регистрации
@@ -167,13 +167,13 @@ async def process_password(message: Message, state: FSMContext):
                 f"🎉 Регистрация успешно завершена!\n\n"
                 f"Добро пожаловать, {name} {last_name}!\n"
                 f"Ваш аккаунт создан и готов к использованию.",
-                reply_markup=main_menu
+                reply_markup=main_menu()
             )
         else:
             await message.answer(
                 "Регистрация завершена, но не удалось получить токен пользователя.\n"
                 "Пожалуйста, обратитесь в поддержку.",
-                reply_markup=main_menu
+                reply_markup=main_menu()
             )
     else:
         await message.answer(
