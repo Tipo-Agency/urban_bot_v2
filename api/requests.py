@@ -1,6 +1,6 @@
 from dotenv import load_dotenv
 import os
-from aiohttp import BasicAuth, ClientSession
+from aiohttp import BasicAuth, ClientSession, ClientTimeout
 
 load_dotenv()
 
@@ -8,9 +8,18 @@ load_dotenv()
 class FitnessRequest:
     BASE_URL = "http://212.19.27.201/urban210/hs/api/v3"
     API_KEY = os.getenv("1C_API_KEY")  # или просто подставь строку
-    USERNAME = os.getenv("1C_USERNAME")  # "Adminbot"
-    PASSWORD = os.getenv("1C_PASSWORD")  # "RekBOT*012G"
-    auth = BasicAuth(USERNAME, PASSWORD)
+    USERNAME = os.getenv("1C_USERNAME", "Adminbot")  # Добавляем значение по умолчанию
+    PASSWORD = os.getenv("1C_PASSWORD", "RekBOT*012G")  # Добавляем значение по умолчанию
+    
+    # Проверяем, что значения не None перед созданием BasicAuth
+    if USERNAME and PASSWORD:
+        auth = BasicAuth(USERNAME, PASSWORD)
+    else:
+        # Если переменные окружения не установлены, используем значения по умолчанию
+        auth = BasicAuth("Adminbot", "RekBOT*012G")
+    
+    # Настройка таймаута
+    timeout = ClientTimeout(total=30)
 
     def __init__(self, user_token: str = None):
         self.user_token = user_token
@@ -21,13 +30,18 @@ class FitnessRequest:
             "apikey": self.API_KEY,
             "usertoken": self.user_token
         }
-        async with ClientSession(auth=self.auth) as session:
-            async with session.get(url, headers=headers) as response:
-                print("Status:", response.status)
-                if response.status == 200:
-                    return await response.json()
-                else:
-                    return None
+        try:
+            async with ClientSession(auth=self.auth, timeout=self.timeout) as session:
+                async with session.get(url, headers=headers) as response:
+                    print("Status:", response.status)
+                    if response.status == 200:
+                        return await response.json()
+                    else:
+                        print(f"Error: {response.status}")
+                        return None
+        except Exception as e:
+            print(f"Connection error: {e}")
+            return None
             
     async def confirm_phone(self, phone: int, code: str):
         url = f"{self.BASE_URL}/confirm_phone"
@@ -35,33 +49,49 @@ class FitnessRequest:
             headers = {
                 "apikey": self.API_KEY,
                 "usertoken": self.user_token,
+                "Content-Type": "application/json"
+            }
+            data = {
                 "phone": phone,
                 "auth_type": "whats_app"
             }
-            async with ClientSession(auth=self.auth) as session:
-                async with session.post(url, headers=headers) as response:
-                    if response.status == 200:
-                        return await response.json()
-                    else:
-                        return None
+            try:
+                async with ClientSession(auth=self.auth, timeout=self.timeout) as session:
+                    async with session.post(url, headers=headers, json=data) as response:
+                        if response.status == 200:
+                            return await response.json()
+                        else:
+                            print(f"Error: {response.status}")
+                            return None
+            except Exception as e:
+                print(f"Connection error: {e}")
+                return None
         if code:
             headers = {
                 "apikey": self.API_KEY,
                 "usertoken": self.user_token,
+                "Content-Type": "application/json"
+            }
+            data = {
                 "phone": phone,
                 "code": code,
                 "auth_type": "whats_app"
             }
-            async with ClientSession(auth=self.auth) as session:
-                async with session.post(url, headers=headers) as response:
-                    if response.status == 200:
-                        pass_token = await response.json().get("pass_token")
-                        if pass_token:
-                            return {"password_token": pass_token}
+            try:
+                async with ClientSession(auth=self.auth, timeout=self.timeout) as session:
+                    async with session.post(url, headers=headers, json=data) as response:
+                        if response.status == 200:
+                            pass_token = await response.json().get("pass_token")
+                            if pass_token:
+                                return {"password_token": pass_token}
+                            else:
+                                return None
                         else:
+                            print(f"Error: {response.status}")
                             return None
-                    else:
-                        return None
+            except Exception as e:
+                print(f"Connection error: {e}")
+                return None
         return False
     
     async def set_password(self, pass_token: str, password: str, phone: int, last_name: str, name: str, second_name: str):
@@ -78,9 +108,15 @@ class FitnessRequest:
         "name": name,
         "second_name": second_name
         }
-        async with ClientSession(auth=self.auth) as session:
-            async with session.post(url, headers=headers, data=data) as response:
-                if response.status == 200:
-                    return await response.json()
-                else:
-                    return None
+        import json
+        try:
+            async with ClientSession(auth=self.auth, timeout=self.timeout) as session:
+                async with session.post(url, headers=headers, json=data) as response:
+                    if response.status == 200:
+                        return await response.json()
+                    else:
+                        print(f"Error: {response.status}")
+                        return None
+        except Exception as e:
+            print(f"Connection error: {e}")
+            return None
