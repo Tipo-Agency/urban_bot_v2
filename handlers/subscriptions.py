@@ -100,7 +100,9 @@ async def back_to_subscriptions_handler(callback: CallbackQuery, state: FSMConte
     await callback.message.delete()
 
 
-@router.message(F.text.regexp(r".*"))
+subscriptions_titles = [sub["title"] for sub in get_subscriptions_from_api()]
+
+@router.message(F.text.in_(subscriptions_titles))
 async def subscription_variant_handler(message: Message, state: FSMContext):
     """Обработка выбора варианта подписки"""
     # Получаем актуальные данные подписок
