@@ -12,7 +12,7 @@ def main_menu():
 
 def get_cabinet_keyboard():
     return InlineKeyboardMarkup(
-        keyboard=[
+        inline_keyboard=[
             [
                 InlineKeyboardButton(text="🔄 Изменить подписку", callback_data="change_subscription"),
                 InlineKeyboardButton(text="❌ Отменить подписку", callback_data="cancel_subscription")
@@ -20,6 +20,5 @@ def get_cabinet_keyboard():
             [
                 InlineKeyboardButton(text="🏠 В главное меню", callback_data="back_to_main")
             ],
-        ],
-        resize_keyboard=True
+        ]
     )
