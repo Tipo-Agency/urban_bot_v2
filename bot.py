@@ -17,8 +17,8 @@ bot = Bot(token=BOT_TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.HTM
 
 dp.include_router(auth_router)
 dp.include_router(cabinet_router)
-dp.include_router(subscriptions_router)
 dp.include_router(support_router)
+dp.include_router(subscriptions_router)
 
 
 

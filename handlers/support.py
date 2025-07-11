@@ -55,6 +55,10 @@ async def support_logic(message: Message):
     if message.text == "🏠 В главное меню":
         active_gpt_users.discard(user_id)
         return  # Обработка перейдет к handlers/subscriptions.py
+    
+    # ⛔ не обрабатываем команды главного меню
+    if message.text in ["Личный кабинет", "Подписки", "Задать вопрос"]:
+        return  # Позволяем другим роутерам обработать эти команды
 
     name = message.from_user.first_name or ""
     history = chat_history[user_id]

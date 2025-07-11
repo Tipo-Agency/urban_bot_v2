@@ -100,11 +100,17 @@ async def back_to_subscriptions_handler(callback: CallbackQuery, state: FSMConte
     await callback.message.delete()
 
 
-subscriptions_titles = [sub["title"] for sub in get_subscriptions_from_api()]
-
-@router.message(F.text.in_(subscriptions_titles))
+@router.message(F.text.regexp(r".*"))
 async def subscription_variant_handler(message: Message, state: FSMContext):
     """Обработка выбора варианта подписки"""
+    # ⛔ не обрабатываем команды главного меню
+    if message.text in ["Личный кабинет", "Подписки", "Задать вопрос", "🏠 В главное меню"]:
+        return  # Позволяем другим роутерам обработать эти команды
+    
+    # ⛔ не обрабатываем команды поддержки
+    if message.text in ["❌ Завершить диалог"]:
+        return  # Позволяем support роутеру обработать эти команды
+    
     # Получаем актуальные данные подписок
     user_data = get_user_token_by_user_id(message.from_user.id)
     user_token = user_data.get('user_token') if user_data else None
