@@ -16,9 +16,10 @@ dp = Dispatcher(storage=storage)
 bot = Bot(token=BOT_TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
 
 dp.include_router(auth_router)
+dp.include_router(cabinet_router)
 dp.include_router(subscriptions_router)
 dp.include_router(support_router)
-dp.include_router(cabinet_router)
+
 
 async def auto_cleanup():
     while True:
