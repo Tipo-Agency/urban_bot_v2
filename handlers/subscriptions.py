@@ -10,6 +10,8 @@ from api.requests import FitnessAuthRequest
 
 router = Router()
 
+print("🔧 subscriptions_router создан и обработчики зарегистрированы")
+
 
 async def get_subscription_keyboard(user_token: str = None):
     """Создает клавиатуру с вариантами подписок из API"""
@@ -75,6 +77,7 @@ async def back_to_main_callback_handler(callback: CallbackQuery, state: FSMConte
 @router.message(F.text == "Подписки")
 async def subscriptions_handler(message: Message, state: FSMContext):
     """Обработчик раздела подписок"""
+    print(f"🔍 subscriptions_handler вызван! user_id={message.from_user.id}, text='{message.text}'")
     await state.clear()
     
     # Получаем user_token из базы данных пользователя
@@ -103,6 +106,7 @@ async def back_to_subscriptions_handler(callback: CallbackQuery, state: FSMConte
 @router.message(lambda message: message.text not in ["Личный кабинет", "Подписки", "Задать вопрос", "🏠 В главное меню", "❌ Завершить диалог"])
 async def subscription_variant_handler(message: Message, state: FSMContext):
     """Обработка выбора варианта подписки"""
+    print(f"🔍 subscription_variant_handler вызван! user_id={message.from_user.id}, text='{message.text}'")
     
     # Получаем актуальные данные подписок
     user_data = get_user_token_by_user_id(message.from_user.id)

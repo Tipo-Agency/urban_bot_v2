@@ -8,6 +8,8 @@ router = Router()
 
 active_gpt_users = set()
 
+print("🔧 support_router создан и обработчики зарегистрированы")
+
 def get_support_keyboard():
     """Создает клавиатуру для режима поддержки"""
     return ReplyKeyboardMarkup(
@@ -21,14 +23,19 @@ def get_support_keyboard():
 
 @router.message(F.text == "Задать вопрос")
 async def ask_handler(message: Message):
+    print(f"🔍 ask_handler вызван! user_id={message.from_user.id}, text='{message.text}'")
     user_id = message.from_user.id
     active_gpt_users.add(user_id)
+    
+    print(f"✅ Пользователь {user_id} добавлен в active_gpt_users")
     
     await message.answer(
         "💬 <b>Техническая поддержка</b>\n\nНапишите свой вопрос, и я постараюсь помочь!\n\n" + 
         "Для завершения диалога или возврата в меню используйте кнопки ниже.",
         reply_markup=get_support_keyboard()
     )
+    
+    print(f"✅ Сообщение отправлено пользователю {user_id}")
 
 
 @router.message(F.text == "❌ Завершить диалог")
@@ -45,10 +52,12 @@ async def end_support_handler(message: Message):
 
 @router.message(F.text)
 async def support_logic(message: Message):
+    print(f"🔍 support_logic вызван! user_id={message.from_user.id}, text='{message.text}'")
     user_id = message.from_user.id
 
     # ⛔ не обрабатываем, если юзер не в режиме GPT
     if user_id not in active_gpt_users:
+        print(f"   ⛔ Пользователь {user_id} не в active_gpt_users, пропускаем")
         return
     
     # ⛔ если пользователь нажал "🏠 В главное меню" - выходим из режима поддержки
