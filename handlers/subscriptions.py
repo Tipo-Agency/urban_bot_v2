@@ -42,6 +42,21 @@ def get_buy_keyboard(subscription_id: str):
     )
 
 
+# Более специфичные хэндлеры должны быть в начале
+@router.message(F.text == "Подписки")
+async def subscriptions_handler(message: Message, state: FSMContext):
+    """Обработчик раздела подписок"""
+    print(f"🔍 subscriptions_handler вызван! user_id={message.from_user.id}, text='{message.text}'")
+    await state.clear()
+    
+    # Получаем user_token из базы данных пользователя
+    user_data = get_user_token_by_user_id(message.from_user.id)
+    user_token = user_data.get('user_token') if user_data else None
+    
+    keyboard, subscriptions = await get_subscription_keyboard(user_token)
+    await message.answer(GREET_MESSAGE, reply_markup=keyboard)
+
+
 @router.message(F.text == "🏠 В главное меню")
 async def back_to_main_menu_handler(message: Message, state: FSMContext):
     """Обработчик возврата в главное меню"""
@@ -72,20 +87,6 @@ async def back_to_main_callback_handler(callback: CallbackQuery, state: FSMConte
     
     await callback.message.answer(greeting_text, reply_markup=main_menu())
     await callback.message.delete()
-
-
-@router.message(F.text == "Подписки")
-async def subscriptions_handler(message: Message, state: FSMContext):
-    """Обработчик раздела подписок"""
-    print(f"🔍 subscriptions_handler вызван! user_id={message.from_user.id}, text='{message.text}'")
-    await state.clear()
-    
-    # Получаем user_token из базы данных пользователя
-    user_data = get_user_token_by_user_id(message.from_user.id)
-    user_token = user_data.get('user_token') if user_data else None
-    
-    keyboard, subscriptions = await get_subscription_keyboard(user_token)
-    await message.answer(GREET_MESSAGE, reply_markup=keyboard)
 
 
 @router.callback_query(F.data == "back_to_subscriptions")
