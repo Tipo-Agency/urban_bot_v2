@@ -50,7 +50,7 @@ async def end_support_handler(message: Message):
     )
 
 
-@router.message(F.text.not_in(["Личный кабинет", "Подписки", "Задать вопрос", "🏠 В главное меню", "❌ Завершить диалог, FitFlow, ProFit, SmartFit"]))
+@router.message(F.text.not_in(["Личный кабинет", "Подписки", "Задать вопрос", "🏠 В главное меню", "❌ Завершить диалог", "FitFlow", "ProFit", "SmartFit"]))
 async def support_logic(message: Message):
     print(f"🔍 support_logic вызван! user_id={message.from_user.id}, text='{message.text}'")
     user_id = message.from_user.id
