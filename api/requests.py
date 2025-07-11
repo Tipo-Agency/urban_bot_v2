@@ -34,7 +34,6 @@ class FitnessAuthRequest:
         try:
             async with ClientSession(auth=self.auth, timeout=self.timeout) as session:
                 async with session.get(url, headers=headers) as response:
-                    print("Status:", response.status)
                     if response.status == 200:
                         return await response.json()
                     else:
