@@ -104,70 +104,6 @@ async def back_to_subscriptions_handler(callback: CallbackQuery, state: FSMConte
     await callback.message.delete()
 
 
-@router.callback_query(F.data.regexp(r"^buy_subscription:(.+)$"))
-async def buy_subscription_handler(callback: CallbackQuery, state: FSMContext):
-    """Обработка покупки подписки"""
-    await callback.answer()
-    
-    subscription_id = callback.data.split(":")[1]
-    
-    # Получаем данные пользователя
-    user_data = get_user_token_by_user_id(callback.from_user.id)
-    
-    # Создаем ссылку на оплату
-    user_id = callback.from_user.id
-    
-    # Получаем информацию о подписке для отображения цены
-    user_token = user_data.get('user_token') if user_data else None
-    subscriptions = await get_subscriptions_from_api(user_token)
-    selected_subscription = next((s for s in subscriptions if s['sub_id'] == subscription_id), None)
-
-    sub_id = selected_subscription['sub_id']
-    sub_name = selected_subscription['title']
-    sub_price = selected_subscription['price']
-    sub_fee_id = selected_subscription.get('fee', {}).get('id', '')
-    sub_fee_title = selected_subscription.get('fee', {}).get('title', '')
-    sub_fee_price = selected_subscription.get('fee', {}).get('price', '')
-
-    
-    if selected_subscription:
-        pay_message = f"""
-💳 <b>Оформление подписки</b>
-
-Вы выбрали: <b>{sub_name}</b>
-
-💰 <b>К оплате:</b>
-• Вступительный взнос: {sub_fee_price} ₽ (разово)
-• Абонемент на месяц: {sub_price} ₽
-—————————————
-ИТОГО: {sub_fee_price + sub_price} ₽
-
-⬇️ Нажмите на кнопку ниже, чтобы оплатить:
-"""
-    else:
-        pay_message = """
-💳 <b>Оформление подписки</b>
-
-💰 <b>К оплате:</b>
-• Вступительный взнос: 3000 ₽ (разово)
-• Абонемент на месяц: уточняется
-—————————————
-ИТОГО: уточняется
-
-⬇️ Нажмите на кнопку ниже, чтобы оплатить:
-"""
-
-    fitness_request = FitnessAuthRequest(user_token=user_token)
-    url = await fitness_request.get_payment_link(
-        subscription_id=sub_id,
-        fee_id_=sub_fee_id,
-    )
-    if not url:
-        await callback.message.answer("❌ Ошибка при получении ссылки на оплату. Пожалуйста, попробуйте позже.")
-    else:
-        await callback.message.answer(pay_message, reply_markup=get_payment_link_keyboard(url))
-
-
 @router.message(lambda message: message.text not in ["Личный кабинет", "Подписки", "Задать вопрос", "🏠 В главное меню", "❌ Завершить диалог"])
 async def subscription_variant_handler(message: Message, state: FSMContext):
     """Обработка выбора варианта подписки"""
@@ -258,5 +194,77 @@ async def subscription_variant_handler(message: Message, state: FSMContext):
             basic_info, 
             reply_markup=get_buy_keyboard(selected_variant['sub_id'])
         )
+
+
+@router.callback_query(F.data.regexp(r"^buy_subscription:(.+)$"))
+async def buy_subscription_handler(callback: CallbackQuery, state: FSMContext):
+    """Обработка покупки подписки"""
+    await callback.answer()
+    
+    subscription_id = callback.data.split(":")[1]
+    
+    # Получаем данные пользователя
+    user_data = get_user_token_by_user_id(callback.from_user.id)
+    
+    # Создаем ссылку на оплату
+    user_id = callback.from_user.id
+    
+    # Получаем информацию о подписке для отображения цены
+    user_token = user_data.get('user_token') if user_data else None
+    subscriptions = await get_subscriptions_from_api(user_token)
+    selected_subscription = next((s for s in subscriptions if s['sub_id'] == subscription_id), None)
+
+    if selected_subscription:
+        sub_id = selected_subscription['sub_id']
+        sub_name = selected_subscription['title']
+        sub_price = selected_subscription['price']
+        sub_fee_id = selected_subscription.get('fee', {}).get('id', '')
+        sub_fee_title = selected_subscription.get('fee', {}).get('title', '')
+        sub_fee_price = selected_subscription.get('fee', {}).get('price', 0)
+
+        try:
+            total_price = int(sub_fee_price) + int(sub_price)
+        except Exception:
+            total_price = f"{sub_fee_price} + {sub_price}"
+
+        pay_message = f"""
+💳 <b>Оформление подписки</b>
+
+Вы выбрали: <b>{sub_name}</b>
+
+ИТОГО: {int(sub_fee_price) + int(sub_price)} ₽
+• {sub_fee_title}: {sub_fee_price} ₽ (разово)
+• Абонемент на месяц: {sub_price} ₽
+—————————————
+ИТОГО: {total_price} ₽
+
+⬇️ Нажмите на кнопку ниже, чтобы оплатить:
+"""
+
+        if not user_token:
+            await callback.message.answer("❌ Не удалось получить токен пользователя. Пожалуйста, повторите попытку позже.")
+        else:
+            fitness_request = FitnessAuthRequest(user_token=user_token)
+            url = await fitness_request.get_payment_link(
+                subscription_id=sub_id,
+                fee_id=sub_fee_id,
+            )
+            if not url:
+                await callback.message.answer("❌ Ошибка при получении ссылки на оплату. Пожалуйста, попробуйте позже.")
+            else:
+                await callback.message.answer(pay_message, reply_markup=get_payment_link_keyboard(url))
+    else:
+        pay_message = """
+💳 <b>Оформление подписки</b>
+
+💰 <b>К оплате:</b>
+• Вступительный взнос: 3000 ₽ (разово)
+• Абонемент на месяц: уточняется
+—————————————
+ИТОГО: уточняется
+
+⬇️ Нажмите на кнопку ниже, чтобы оплатить:
+"""
+        await callback.message.answer(pay_message)
 
 
