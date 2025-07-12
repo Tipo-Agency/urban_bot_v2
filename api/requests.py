@@ -1,36 +1,28 @@
-from dotenv import load_dotenv
 import os
+
 from aiohttp import BasicAuth, ClientSession, ClientTimeout
+from dotenv import load_dotenv
 
 load_dotenv()
 
 
 class FitnessAuthRequest:
     BASE_URL = "http://212.19.27.201/urban210/hs/api/v3"
-    API_KEY = os.getenv("1C_API_KEY", "")  # Добавляем значение по умолчанию
-    USERNAME = os.getenv("1C_USERNAME", "Adminbot")  # Добавляем значение по умолчанию
-    PASSWORD = os.getenv("1C_PASSWORD", "RekBOT*012G")  # Добавляем значение по умолчанию
-    PROXY_URL = "http://46.19.64.193:8444"
-    
-    # Проверяем, что значения не None перед созданием BasicAuth
-    if USERNAME and PASSWORD:
-        auth = BasicAuth(USERNAME, PASSWORD)
-    else:
-        # Если переменные окружения не установлены, используем значения по умолчанию
-        auth = BasicAuth("Adminbot", "RekBOT*012G")
-    
-    # Настройка таймаута
+    API_KEY = os.getenv("1C_API_KEY")
+    USERNAME = os.getenv("1C_USERNAME")
+    PASSWORD = os.getenv("1C_PASSWORD")
+    PROXY_URL = os.getenv("PROXY_URL")
+
+    auth = BasicAuth(str(USERNAME), str(PASSWORD))
+
     timeout = ClientTimeout(total=30)
 
-    def __init__(self, user_token: str = None):
+    def __init__(self, user_token: str = ""):
         self.user_token = user_token
 
     async def get_client(self):
         url = f"{self.BASE_URL}/client"
-        headers = {
-            "apikey": self.API_KEY or "",
-            "usertoken": self.user_token or ""
-        }
+        headers = {"apikey": self.API_KEY or "", "usertoken": self.user_token or ""}
         try:
             async with ClientSession(auth=self.auth, timeout=self.timeout) as session:
                 async with session.get(url, headers=headers) as response:
@@ -42,17 +34,14 @@ class FitnessAuthRequest:
         except Exception as e:
             print(f"Connection error: {e}")
             return None
-        
+
     async def auth_client(self, phone: int, password: str):
         url = f"{self.BASE_URL}/auth_client"
         headers = {
             "Content-Type": "application/json",
             "apikey": self.API_KEY or "",
         }
-        data = {
-            "phone": phone,
-            "password": password
-        }
+        data = {"phone": phone, "password": password}
 
         try:
             async with ClientSession(auth=self.auth, timeout=self.timeout) as session:
@@ -66,8 +55,19 @@ class FitnessAuthRequest:
         except Exception as e:
             print(f"Connection error: {e}")
             return None
-                
-    async def auth_and_register(self, phone: int, password: str, last_name: str, name: str, second_name: str, email: str, birth_date: str, pass_token: str = None, autopassword_to_sms: bool = False):
+
+    async def auth_and_register(
+        self,
+        phone: int,
+        password: str,
+        last_name: str,
+        name: str,
+        second_name: str,
+        email: str,
+        birth_date: str,
+        pass_token: str = "",
+        autopassword_to_sms: bool = False,
+    ):
         url = f"{self.BASE_URL}/reg_and_auth_client"
         headers = {
             "Content-Type": "application/json",
@@ -82,7 +82,7 @@ class FitnessAuthRequest:
             "second_name": second_name,
             "email": email,
             "birth_date": birth_date,
-            "autopassword_to_sms": autopassword_to_sms
+            "autopassword_to_sms": autopassword_to_sms,
         }
         try:
             async with ClientSession(auth=self.auth, timeout=self.timeout) as session:
@@ -96,22 +96,23 @@ class FitnessAuthRequest:
         except Exception as e:
             print(f"Connection error: {e}")
             return None
-        
+
     async def confirm_phone(self, phone: int, code: str):
         url = f"{self.BASE_URL}/confirm_phone"
         if not code:
             headers = {
                 "apikey": self.API_KEY or "",
                 "usertoken": self.user_token or "",
-                "Content-Type": "application/json"
+                "Content-Type": "application/json",
             }
-            data = {
-                "phone": phone,
-                "auth_type": "whats_app"
-            }
+            data = {"phone": phone, "auth_type": "whats_app"}
             try:
-                async with ClientSession(auth=self.auth, timeout=self.timeout) as session:
-                    async with session.post(url, headers=headers, json=data) as response:
+                async with ClientSession(
+                    auth=self.auth, timeout=self.timeout
+                ) as session:
+                    async with session.post(
+                        url, headers=headers, json=data
+                    ) as response:
                         if response.status == 200:
                             return await response.json()
                         else:
@@ -121,18 +122,15 @@ class FitnessAuthRequest:
                 print(f"Connection error: {e}")
                 return None
         if code:
-            headers = {
-                "apikey": self.API_KEY or "",
-                "Content-Type": "application/json"
-            }
-            data = {
-                "phone": phone,
-                "confirmation_code": code,
-                "auth_type": "whats_app"
-            }
+            headers = {"apikey": self.API_KEY or "", "Content-Type": "application/json"}
+            data = {"phone": phone, "confirmation_code": code, "auth_type": "whats_app"}
             try:
-                async with ClientSession(auth=self.auth, timeout=self.timeout) as session:
-                    async with session.post(url, headers=headers, json=data) as response:
+                async with ClientSession(
+                    auth=self.auth, timeout=self.timeout
+                ) as session:
+                    async with session.post(
+                        url, headers=headers, json=data
+                    ) as response:
                         if response.status == 200:
                             result = await response.json()
                             pass_token = result.get("data", {}).get("pass_token", "")
@@ -147,20 +145,28 @@ class FitnessAuthRequest:
                 print(f"Connection error: {e}")
                 return None
         return False
-    
-    async def set_password(self, pass_token: str, password: str, phone: int, last_name: str, name: str, second_name: str):
+
+    async def set_password(
+        self,
+        pass_token: str,
+        password: str,
+        phone: int,
+        last_name: str,
+        name: str,
+        second_name: str,
+    ):
         url = f"{self.BASE_URL}/password"
         headers = {
             "Content-Type": "application/json",
-            "apikey": self.API_KEY or "",
+            "apikey": self.API_KEY,
         }
         data = {
-        "pass_token": pass_token,
-        "password": password,
-        "phone": phone,
-        "last_name": last_name,
-        "name": name,
-        "second_name": second_name
+            "pass_token": pass_token,
+            "password": password,
+            "phone": phone,
+            "last_name": last_name,
+            "name": name,
+            "second_name": second_name,
         }
         try:
             async with ClientSession(auth=self.auth, timeout=self.timeout) as session:
@@ -173,12 +179,12 @@ class FitnessAuthRequest:
         except Exception as e:
             print(f"Connection error: {e}")
             return None
-        
-    async def get_subscriptions(self, user_token: str = None):
+
+    async def get_subscriptions(self):
         url = f"{self.BASE_URL}/price_list?type=membership&club_id=b5f85d29-6727-11e9-80cb-00155d066506"
         headers = {
-            "apikey": self.API_KEY or "",
-            "usertoken": user_token or self.user_token or ""
+            "apikey": self.API_KEY,
+            "usertoken": self.user_token,
         }
         try:
             async with ClientSession(auth=self.auth, timeout=self.timeout) as session:
@@ -191,7 +197,12 @@ class FitnessAuthRequest:
                                     "id": item.get("id", ""),
                                     "title": item.get("title", ""),
                                     "price": item.get("price", ""),
-                                    "available_time": item.get("available_time", "")
+                                    "available_time": item.get("available_time", ""),
+                                    "fee": {
+                                        "id": item.get("fee", {}).get("id", ""),
+                                        "title": item.get("fee", {}).get("title", ""),
+                                        "price": item.get("fee", {}).get("price", ""),
+                                    },
                                 }
                                 for item in data.get("data", [])
                             ]
@@ -202,13 +213,10 @@ class FitnessAuthRequest:
         except Exception as e:
             print(f"Connection error: {e}")
             return None
-                
+
     async def get_subscription_details(self, subscription_id: str):
         url = f"{self.BASE_URL}/price_list?type=membership&club_id=b5f85d29-6727-11e9-80cb-00155d066506&service_id={subscription_id}"
-        headers = {
-            "apikey": self.API_KEY or "",
-            "usertoken": self.user_token or ""
-        }
+        headers = {"apikey": self.API_KEY, "usertoken": self.user_token}
         try:
             async with ClientSession(auth=self.auth, timeout=self.timeout) as session:
                 async with session.get(url, headers=headers) as response:
@@ -226,14 +234,18 @@ class FitnessAuthRequest:
                             "title": subscription_data.get("title", ""),
                             "description": subscription_data.get("description", ""),
                             "price": subscription_data.get("price", ""),
-                            "available_time": subscription_data.get("available_time", ""),
-                            "validity_period": (subscription_data.get("validity") or {}).get("validity_description", ""),
+                            "available_time": subscription_data.get(
+                                "available_time", ""
+                            ),
+                            "validity_period": (
+                                subscription_data.get("validity") or {}
+                            ).get("validity_description", ""),
                             "restriction": subscription_data.get("restriction", ""),
                             "fee": {
                                 "id": fee_data.get("id", ""),
                                 "title": fee_data.get("title", ""),
                                 "price": fee_data.get("price", ""),
-                            }
+                            },
                         }
 
                         return {"subscription": subscription}
@@ -244,4 +256,29 @@ class FitnessAuthRequest:
             print(f"Connection error: {e}")
             return None
 
-
+    async def get_payment_link(
+        self,
+        subscription_id: str,
+        fee_id: str,
+    ):
+        url = f"{self.BASE_URL}/payment_link?service_id={subscription_id}"
+        headers = {"apikey": self.API_KEY, "usertoken": self.user_token}
+        data = {
+            "cart": [
+                {"purchase_id": fee_id, "count": 1},
+                {"purchase_id": subscription_id, "count": 1},
+            ],
+            # "club_id": "b5f85d29-6727-11e9-80cb-00155d066506",
+        }
+        try:
+            async with ClientSession(auth=self.auth) as session:
+                async with session.post(url, headers=headers, json=data) as response:
+                    if response.status == 200:
+                        result = await response.json()
+                        return result.get("data", {}).get("link", "")
+                    else:
+                        print(f"Error: {response.status}")
+                        return None
+        except Exception as e:
+            print(f"Connection error: {e}")
+            return None

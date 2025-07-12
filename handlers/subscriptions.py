@@ -5,7 +5,7 @@ from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton, ReplyKeybo
 
 from db import get_user_token_by_user_id
 from messages import GREET_MESSAGE, get_subscriptions_from_api
-from keyboards import main_menu
+from keyboards import main_menu, get_payment_link_keyboard
 from api.requests import FitnessAuthRequest
 
 router = Router()
@@ -13,7 +13,7 @@ router = Router()
 print("🔧 subscriptions_router создан и обработчики зарегистрированы")
 
 
-async def get_subscription_keyboard(user_token: str = None):
+async def get_subscription_keyboard(user_token: str = ""):
     """Создает клавиатуру с вариантами подписок из API"""
     # Получаем реальные данные подписок
     subscriptions = await get_subscriptions_from_api(user_token)
@@ -36,7 +36,7 @@ def get_buy_keyboard(subscription_id: str):
     """Создает инлайн клавиатуру для покупки подписки"""
     return InlineKeyboardMarkup(
         inline_keyboard=[
-            [InlineKeyboardButton(text="💳 Купить подписку", callback_data=f"buy_subscription:{subscription_id}")],
+            [InlineKeyboardButton(text="✅ Оформить подписку", callback_data=f"buy_subscription:{subscription_id}")],
             [InlineKeyboardButton(text="🔙 Назад к подпискам", callback_data="back_to_subscriptions")]
         ]
     )
@@ -213,18 +213,26 @@ async def buy_subscription_handler(callback: CallbackQuery, state: FSMContext):
     user_token = user_data.get('user_token') if user_data else None
     subscriptions = await get_subscriptions_from_api(user_token)
     selected_subscription = next((s for s in subscriptions if s['sub_id'] == subscription_id), None)
+
+    sub_id = selected_subscription['sub_id']
+    sub_name = selected_subscription['title']
+    sub_price = selected_subscription['price']
+    sub_fee_id = selected_subscription.get('fee', {}).get('id', '')
+    sub_fee_title = selected_subscription.get('fee', {}).get('title', '')
+    sub_fee_price = selected_subscription.get('fee', {}).get('price', '')
+
     
     if selected_subscription:
         pay_message = f"""
 💳 <b>Оформление подписки</b>
 
-Вы выбрали: <b>{selected_subscription['title']}</b>
+Вы выбрали: <b>{sub_name}</b>
 
 💰 <b>К оплате:</b>
-• Вступительный взнос: 3000 ₽ (разово)
-• Абонемент на месяц: {selected_subscription['price']} ₽
+• Вступительный взнос: {sub_fee_price} ₽ (разово)
+• Абонемент на месяц: {sub_price} ₽
 —————————————
-ИТОГО: {3000 + selected_subscription['price']} ₽
+ИТОГО: {sub_fee_price + sub_price} ₽
 
 ⬇️ Нажмите на кнопку ниже, чтобы оплатить:
 """
@@ -240,7 +248,15 @@ async def buy_subscription_handler(callback: CallbackQuery, state: FSMContext):
 
 ⬇️ Нажмите на кнопку ниже, чтобы оплатить:
 """
-    
-    await callback.message.answer(pay_message, reply_markup=get_buy_keyboard(user_id))
+
+    fitness_request = FitnessAuthRequest(user_token=user_token)
+    url = await fitness_request.get_payment_link(
+        subscription_id=sub_id,
+        fee_id_=sub_fee_id,
+    )
+    if not url:
+        await callback.message.answer("❌ Ошибка при получении ссылки на оплату. Пожалуйста, попробуйте позже.")
+    else:
+        await callback.message.answer(pay_message, reply_markup=get_payment_link_keyboard(url))
 
 

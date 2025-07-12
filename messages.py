@@ -64,7 +64,12 @@ async def get_subscriptions_from_api(user_token: str = None):
                     "title": sub.get("title", "Тариф"),
                     "description": description,
                     "price": price,
-                    "available_time": available_time
+                    "available_time": available_time,
+                    "fee": {
+                        "id": sub.get("fee", {}).get("id", ""),
+                        "title": sub.get("fee", {}).get("title", ""),
+                        "price": sub.get("fee", {}).get("price", ""),
+                    }
                 })
             
             return subscriptions
