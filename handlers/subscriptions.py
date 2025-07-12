@@ -197,7 +197,7 @@ async def subscription_variant_handler(message: Message, state: FSMContext):
 
 
 @router.callback_query(F.data.regexp(r"^buy_subscription:(.+)$"))
-async def buy_subscription_handler(callback: CallbackQuery, state: FSMContext):
+async def buy_subscription_handler(callback: CallbackQuery):
     """Обработка покупки подписки"""
     await callback.answer()
     
@@ -221,28 +221,24 @@ async def buy_subscription_handler(callback: CallbackQuery, state: FSMContext):
         sub_fee_id = selected_subscription.get('fee', {}).get('id', '')
         sub_fee_title = selected_subscription.get('fee', {}).get('title', '')
         sub_fee_price = selected_subscription.get('fee', {}).get('price', 0)
-
-        try:
-            total_price = int(sub_fee_price) + int(sub_price)
-        except Exception:
-            total_price = f"{sub_fee_price} + {sub_price}"
+        total_price = int(sub_fee_price) + int(sub_price)
 
         pay_message = f"""
 💳 <b>Оформление подписки</b>
 
 Вы выбрали: <b>{sub_name}</b>
 
-ИТОГО: {int(sub_fee_price) + int(sub_price)} ₽
+💰 К оплате:
 • {sub_fee_title}: {sub_fee_price} ₽ (разово)
 • Абонемент на месяц: {sub_price} ₽
-—————————————
+———————————————————
 ИТОГО: {total_price} ₽
 
 ⬇️ Нажмите на кнопку ниже, чтобы оплатить:
 """
 
         if not user_token:
-            await callback.message.answer("❌ Не удалось получить токен пользователя. Пожалуйста, повторите попытку позже.")
+            await callback.message.edit_text("❌ Ошибка при получении ссылки на оплату. Пожалуйста, попробуйте позже.", reply_markup=main_menu())
         else:
             fitness_request = FitnessAuthRequest(user_token=user_token)
             url = await fitness_request.get_payment_link(
@@ -250,21 +246,9 @@ async def buy_subscription_handler(callback: CallbackQuery, state: FSMContext):
                 fee_id=sub_fee_id,
             )
             if not url:
-                await callback.message.answer("❌ Ошибка при получении ссылки на оплату. Пожалуйста, попробуйте позже.")
+                await callback.message.edit_text("❌ Ошибка при получении ссылки на оплату. Пожалуйста, попробуйте позже.", reply_markup=main_menu())
             else:
-                await callback.message.answer(pay_message, reply_markup=get_payment_link_keyboard(url))
-    else:
-        pay_message = """
-💳 <b>Оформление подписки</b>
+                await callback.message.edit_text(pay_message, reply_markup=get_payment_link_keyboard(url))
 
-💰 <b>К оплате:</b>
-• Вступительный взнос: 3000 ₽ (разово)
-• Абонемент на месяц: уточняется
-—————————————
-ИТОГО: уточняется
-
-⬇️ Нажмите на кнопку ниже, чтобы оплатить:
-"""
-        await callback.message.answer(pay_message)
 
 
