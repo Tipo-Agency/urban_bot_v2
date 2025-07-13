@@ -238,7 +238,7 @@ async def buy_subscription_handler(callback: CallbackQuery):
 """
 
         if not user_token:
-            await callback.message.edit_text("❌ Ошибка при получении ссылки на оплату. Пожалуйста, попробуйте позже.", reply_markup=main_menu())
+            await callback.message.answer("❌ Ошибка при получении ссылки на оплату. Пожалуйста, попробуйте позже.", reply_markup=main_menu())
         else:
             fitness_request = FitnessAuthRequest(user_token=user_token)
             url = await fitness_request.get_payment_link(
@@ -246,7 +246,7 @@ async def buy_subscription_handler(callback: CallbackQuery):
                 fee_id=sub_fee_id,
             )
             if not url:
-                await callback.message.edit_text("❌ Ошибка при получении ссылки на оплату. Пожалуйста, попробуйте позже.", reply_markup=main_menu())
+                await callback.message.answer("❌ Ошибка при получении ссылки на оплату. Пожалуйста, попробуйте позже.", reply_markup=main_menu())
             else:
                 await callback.message.edit_text(pay_message, reply_markup=get_payment_link_keyboard(url))
 

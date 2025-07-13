@@ -184,7 +184,6 @@ class FitnessAuthRequest:
         url = f"{self.BASE_URL}/price_list?type=membership&club_id=b5f85d29-6727-11e9-80cb-00155d066506"
         headers = {
             "apikey": self.API_KEY,
-            "usertoken": self.user_token,
         }
         try:
             async with ClientSession(auth=self.auth, timeout=self.timeout) as session:
@@ -216,7 +215,7 @@ class FitnessAuthRequest:
 
     async def get_subscription_details(self, subscription_id: str):
         url = f"{self.BASE_URL}/price_list?type=membership&club_id=b5f85d29-6727-11e9-80cb-00155d066506&service_id={subscription_id}"
-        headers = {"apikey": self.API_KEY, "usertoken": self.user_token}
+        headers = {"apikey": self.API_KEY}
         try:
             async with ClientSession(auth=self.auth, timeout=self.timeout) as session:
                 async with session.get(url, headers=headers) as response:
