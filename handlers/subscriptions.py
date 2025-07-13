@@ -117,7 +117,7 @@ async def subscription_variant_handler(message: Message, state: FSMContext):
     # Находим выбранный тариф по названию
     selected_variant = None
     for variant in subscriptions:
-        if variant['title'] == message.text.strip():
+        if variant['title'] == message.text:
             selected_variant = variant
             break
     
