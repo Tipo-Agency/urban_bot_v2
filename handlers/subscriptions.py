@@ -117,6 +117,8 @@ async def subscription_variant_handler(message: Message, state: FSMContext):
     # Находим выбранный тариф по названию
     selected_variant = None
     for variant in subscriptions:
+        print(f"🔍 Проверяем вариант: {variant['title']}")
+        print(f"🔍 Сравниваем с текстом сообщения: {message.text}")
         if variant['title'] == message.text:
             selected_variant = variant
             break
@@ -128,9 +130,11 @@ async def subscription_variant_handler(message: Message, state: FSMContext):
     try:
         fitness_request = FitnessAuthRequest(user_token=user_token)
         details = await fitness_request.get_subscription_details(selected_variant['sub_id'])
+        print(f"🔍 Получены детали подписки: {details}")
         
         if details and details.get("subscription"):
             sub_details = details["subscription"]
+            print(f"🔍 Детали подписки: {sub_details}")
             
             # Формируем подробное описание
             description = f"""
