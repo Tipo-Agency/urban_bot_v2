@@ -1,3 +1,4 @@
+import logging
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import JSONResponse, HTMLResponse
@@ -6,9 +7,11 @@ from typing import Optional
 import uvicorn
 import sqlite3
 
-from config import CLOUDPAYMENTS_PUBLIC_ID
+from config import CLOUDPAYMENTS_PUBLIC_ID, logger
 from db import get_user_by_id, DATABASE_PATH
 from messages import SUBSCRIPTION_VARIANTS, START_PRICE, MASSIVE_SUCCESS
+
+web_logger = logging.getLogger(__name__)
 
 app = FastAPI()
 
@@ -67,16 +70,17 @@ async def payment_success(data: SuccessPayment):
         
         # Отправляем сообщение об успешной оплате
         await bot.send_message(chat_id, MASSIVE_SUCCESS)
+        web_logger.info(f"✅ Сообщение об успешной оплате отправлено пользователю {chat_id}")
         return {"success": True}
     except Exception as e:
-        print(f"Error sending message: {e}")
+        web_logger.error(f"❌ Ошибка отправки сообщения: {e}")
         raise HTTPException(status_code=500, detail="Failed to send message")
 
 @app.post("/api/cloudpayments/webhook")
 async def cloudpayments_webhook(request: Request):
     """Webhook для CloudPayments"""
     event = await request.json()
-    print('WEBHOOK', event)
+    web_logger.info(f'🔔 WEBHOOK получен: {event}')
     
     # CloudPayments требует ответ 200 с JSON {code: 0}
     return {"code": 0}
@@ -107,7 +111,8 @@ async def payment_page(token: str):
 
 def run_server():
     """Запуск веб-сервера"""
-    uvicorn.run(app, host="0.0.0.0")
+    web_logger.info("🌐 Веб-сервер запускается на порту 8000")
+    uvicorn.run(app, host="0.0.0.0", port=8000)
 
 if __name__ == "__main__":
     run_server() 

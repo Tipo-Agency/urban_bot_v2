@@ -1,3 +1,4 @@
+import logging
 from aiogram import Router, F
 from aiogram.types import Message, CallbackQuery
 from aiogram.fsm.context import FSMContext
@@ -8,9 +9,11 @@ from messages import GREET_MESSAGE, get_subscriptions_from_api
 from keyboards import main_menu, get_payment_link_keyboard
 from api.requests import FitnessAuthRequest, FitnessSubscriptionRequest
 
+logger = logging.getLogger(__name__)
+
 router = Router()
 
-print("🔧 subscriptions_router создан и обработчики зарегистрированы")
+logger.info("🔧 subscriptions_router создан и обработчики зарегистрированы")
 
 
 async def get_subscription_keyboard(user_token: str = ""):
@@ -46,7 +49,7 @@ def get_buy_keyboard(subscription_id: str):
 @router.message(F.text == "Подписки")
 async def subscriptions_handler(message: Message, state: FSMContext):
     """Обработчик раздела подписок"""
-    print(f"🔍 subscriptions_handler вызван! user_id={message.from_user.id}, text='{message.text}'")
+    logger.info(f"🔍 subscriptions_handler вызван! user_id={message.from_user.id}, text='{message.text}'")
     await state.clear()
     
     # Получаем user_token из базы данных пользователя
@@ -107,7 +110,7 @@ async def back_to_subscriptions_handler(callback: CallbackQuery, state: FSMConte
 @router.message(lambda message: message.text not in ["Личный кабинет", "Подписки", "Задать вопрос", "🏠 В главное меню", "❌ Завершить диалог"])
 async def subscription_variant_handler(message: Message, state: FSMContext):
     """Обработка выбора варианта подписки"""
-    print(f"🔍 subscription_variant_handler вызван! user_id={message.from_user.id}, text='{message.text}'")
+    logger.info(f"🔍 subscription_variant_handler вызван! user_id={message.from_user.id}, text='{message.text}'")
     
     # Получаем актуальные данные подписок
     user_data = get_user_token_by_user_id(message.from_user.id)
@@ -117,8 +120,8 @@ async def subscription_variant_handler(message: Message, state: FSMContext):
     # Находим выбранный тариф по названию
     selected_variant = None
     for variant in subscriptions:
-        print(f"🔍 Проверяем вариант: {variant['title']}")
-        print(f"🔍 Сравниваем с текстом сообщения: {message.text}")
+        logger.debug(f"🔍 Проверяем вариант: {variant['title']}")
+        logger.debug(f"🔍 Сравниваем с текстом сообщения: {message.text}")
         if variant['title'] == message.text:
             selected_variant = variant
             break
@@ -130,11 +133,11 @@ async def subscription_variant_handler(message: Message, state: FSMContext):
     try:
         fitness_request = FitnessSubscriptionRequest(user_token=user_token)
         details = await fitness_request.get_subscription_details(selected_variant['sub_id'])
-        print(f"🔍 Получены детали подписки: {details}")
+        logger.debug(f"🔍 Получены детали подписки: {details}")
         
         if details and details.get("subscription"):
             sub_details = details["subscription"]
-            print(f"🔍 Детали подписки: {sub_details}")
+            logger.debug(f"🔍 Детали подписки: {sub_details}")
             
             # Формируем подробное описание
             description = f"""
@@ -182,7 +185,7 @@ async def subscription_variant_handler(message: Message, state: FSMContext):
             )
             
     except Exception as e:
-        print(f"Ошибка получения деталей подписки: {e}")
+        logger.error(f"Ошибка получения деталей подписки: {e}")
         # Показываем базовую информацию при ошибке
         basic_info = f"""
 💳 <b>{selected_variant['title']}</b>
@@ -265,6 +268,6 @@ async def check_payment_handler(callback: CallbackQuery):
         payment_status = await fitness_request.check_payment(subscription_id)
 
         if payment_status:
-            await callback.message.answer("✅ Спасибо! Ваш платеж успешно подтвержден.", reply_markup=main_menu())
+            await callback.message.edit_text("✅ Спасибо! Ваш платеж успешно подтвержден.", reply_markup=main_menu())
         else:
-            await callback.message.answer("❌ Платеж не выполнен", reply_markup=main_menu())
+            await callback.message.edit_text("❌ Платеж не выполден, если возникли проблемы, свяжитесь с администратором", reply_markup=main_menu())

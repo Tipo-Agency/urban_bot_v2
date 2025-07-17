@@ -35,6 +35,10 @@ def get_pay_message(title: str, price: int) -> str:
 ⬇️ Нажмите на кнопку ниже, чтобы оплатить:
 """
 
+import logging
+
+logger = logging.getLogger(__name__)
+
 # Функция для получения реальных подписок из API
 async def get_subscriptions_from_api(user_token: str = None):
     """Получает реальные данные подписок из API"""
@@ -72,13 +76,15 @@ async def get_subscriptions_from_api(user_token: str = None):
                     }
                 })
             
+            logger.debug(f"✅ Получено {len(subscriptions)} подписок из API")
             return subscriptions
         else:
             # Возвращаем дефолтные данные если API недоступен
+            logger.warning("⚠️ API недоступен, используем дефолтные подписки")
             return get_default_subscriptions()
             
     except Exception as e:
-        print(f"Ошибка получения подписок из API: {e}")
+        logger.error(f"❌ Ошибка получения подписок из API: {e}")
         # Возвращаем дефолтные данные при ошибке
         return get_default_subscriptions()
 

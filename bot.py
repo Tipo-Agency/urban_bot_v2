@@ -1,9 +1,10 @@
+import logging
 from aiogram import Bot, Dispatcher
 from aiogram.enums import ParseMode
 from aiogram.types import BotCommand
 from aiogram.client.default import DefaultBotProperties
 from aiogram.fsm.storage.memory import MemoryStorage
-from config import BOT_TOKEN
+from config import BOT_TOKEN, logger
 from handlers import support_router, auth_router, subscriptions_router, cabinet_router
 from history import last_seen, chat_history, HISTORY_TIMEOUT
 import time
@@ -27,7 +28,7 @@ async def auto_cleanup():
         now = time.time()
         for uid in list(last_seen):
             if now - last_seen[uid] > HISTORY_TIMEOUT:
-                print(f"[AUTO CLEANUP] Очистка истории для user_id={uid}")
+                logger.info(f"[AUTO CLEANUP] Очистка истории для user_id={uid}")
                 chat_history.pop(uid, None)
                 last_seen.pop(uid, None)
         await asyncio.sleep(60)  # проверяем каждую минуту
@@ -42,5 +43,5 @@ async def on_startup(bot: Bot):
     asyncio.create_task(auto_cleanup())
 
 if __name__ == "__main__":
-    print("Bot started")
+    logger.info("🚀 Бот запущен")
     dp.run_polling(bot, on_startup=on_startup)

@@ -7,19 +7,21 @@ import asyncio
 import threading
 import signal
 import sys
+import logging
+from config import logger
 
 def run_web_server():
     """Запуск веб-сервера в отдельном потоке"""
     try:
         from web_server import run_server
-        print("🌐 Starting web server...")
+        logger.info("🌐 Starting web server...")
         run_server()
     except Exception as e:
-        print(f"❌ Error starting web server: {e}")
+        logger.error(f"❌ Error starting web server: {e}")
 
 def signal_handler(sig, frame):
     """Обработка сигнала завершения"""
-    print('\n🛑 Shutting down...')
+    logger.info('🛑 Shutting down...')
     sys.exit(0)
 
 async def main():
@@ -28,13 +30,12 @@ async def main():
     signal.signal(signal.SIGINT, signal_handler)
     signal.signal(signal.SIGTERM, signal_handler)
     
-    print("🤖 Starting Telegram Bot with Payment System...")
-    print("📋 Features:")
-    print("   - SQLite database for users")
-    print("   - CloudPayments integration") 
-    print("   - Web interface for payments")
-    print("   - Subscription management")
-    print()
+    logger.info("🤖 Starting Telegram Bot with Payment System...")
+    logger.info("📋 Features:")
+    logger.info("   - SQLite database for users")
+    logger.info("   - CloudPayments integration") 
+    logger.info("   - Web interface for payments")
+    logger.info("   - Subscription management")
     
     # Запускаем веб-сервер в отдельном потоке
     web_thread = threading.Thread(target=run_web_server, daemon=True)
@@ -46,16 +47,16 @@ async def main():
     # Запускаем бота
     try:
         from bot import dp, bot, on_startup
-        print("🚀 Bot is starting...")
+        logger.info("🚀 Bot is starting...")
         await on_startup(bot)
         await dp.start_polling(bot)
     except Exception as e:
-        print(f"❌ Error starting bot: {e}")
+        logger.error(f"❌ Error starting bot: {e}")
 
 if __name__ == "__main__":
     try:
         asyncio.run(main())
     except KeyboardInterrupt:
-        print("\n🛑 Bot stopped by user")
+        logger.info("🛑 Bot stopped by user")
     except Exception as e:
-        print(f"❌ Fatal error: {e}") 
+        logger.error(f"❌ Fatal error: {e}") 

@@ -1,4 +1,7 @@
+import logging
 from aiogram.types import ReplyKeyboardMarkup, KeyboardButton, InlineKeyboardMarkup, InlineKeyboardButton
+
+logger = logging.getLogger(__name__)
 
 def main_menu():
     return ReplyKeyboardMarkup(

@@ -1,3 +1,4 @@
+import logging
 from aiogram import Router, F
 from aiogram.types import Message, ReplyKeyboardMarkup, KeyboardButton
 from aiogram.filters import Command
@@ -7,6 +8,8 @@ from db import get_user_token_by_user_id, create_or_update_user
 from aiogram.fsm.state import State, StatesGroup
 from api.requests import FitnessAuthRequest
 import re
+
+logger = logging.getLogger(__name__)
 
 router = Router()
 
@@ -23,14 +26,18 @@ class AuthStates(StatesGroup):
 @router.message(Command("start"))
 async def start_handler(message: Message, state: FSMContext):
     user_id = message.from_user.id
+    logger.info(f"🚀 Команда /start от пользователя {user_id}")
+    
     user_data = get_user_token_by_user_id(user_id)
     
     # Если в БД есть user_token - пользователь авторизован
     if user_data and user_data.get('user_token'):
+        logger.info(f"✅ Пользователь {user_id} уже авторизован")
         await message.answer("Вы уже авторизованы!", reply_markup=main_menu())
         return
     
     # Если user_token нет - начинаем процесс регистрации
+    logger.info(f"📝 Начинаем регистрацию для пользователя {user_id}")
     await state.clear()
     await message.answer(
         "Добро пожаловать в бот фитнес-клуба! 🏋️‍♂️\n\n"
@@ -43,6 +50,8 @@ async def start_handler(message: Message, state: FSMContext):
 @router.message(AuthStates.phone, F.text)
 async def process_phone_text(message: Message, state: FSMContext):
     phone = message.text.strip()
+    user_id = message.from_user.id
+    logger.info(f"📱 Получен номер телефона от пользователя {user_id}: {phone}")
     
     # Проверяем формат номера
     # if not re.match(r'^\+7\d{10}$', phone):
@@ -59,12 +68,14 @@ async def process_phone_text(message: Message, state: FSMContext):
     result = await fitness_request.confirm_phone(int(phone[1:]), "")
     
     if result:
+        logger.info(f"✅ Код подтверждения отправлен на номер {phone} для пользователя {user_id}")
         await message.answer(
             f"Код подтверждения отправлен на номер {phone}\n"
             "Пожалуйста, введите код из WhatsApp:"
         )
         await state.set_state(AuthStates.code)
     else:
+        logger.error(f"❌ Ошибка отправки кода подтверждения для пользователя {user_id}")
         await message.answer(
             "Ошибка при отправке кода подтверждения.\n"
             "Пожалуйста, попробуйте еще раз или обратитесь в поддержку."
@@ -73,12 +84,15 @@ async def process_phone_text(message: Message, state: FSMContext):
 @router.message(AuthStates.code, F.text)
 async def process_code(message: Message, state: FSMContext):
     code = message.text.strip()
+    user_id = message.from_user.id
+    logger.info(f"🔐 Получен код подтверждения от пользователя {user_id}")
     
     # Получаем номер телефона из состояния
     data = await state.get_data()
     phone = data.get('phone')
     
     if not phone:
+        logger.error(f"❌ Отсутствует номер телефона в состоянии для пользователя {user_id}")
         await message.answer("Ошибка. Начните регистрацию заново.")
         await state.clear()
         return
@@ -88,6 +102,7 @@ async def process_code(message: Message, state: FSMContext):
     result = await fitness_request.confirm_phone(int(phone[1:]), code)
     
     if result and result.get('password_token'):
+        logger.info(f"✅ Код подтвержден для пользователя {user_id}")
         await state.update_data(password_token=result['password_token'])
         await message.answer(
             "Код подтвержден! ✅\n\n"
@@ -96,6 +111,7 @@ async def process_code(message: Message, state: FSMContext):
         )
         await state.set_state(AuthStates.last_name)
     else:
+        logger.warning(f"⚠️ Неверный код подтверждения для пользователя {user_id}")
         await message.answer(
             "Неверный код подтверждения.\n"
             "Пожалуйста, попробуйте еще раз:"
@@ -165,7 +181,7 @@ async def process_password(message: Message, state: FSMContext):
     
     # Создаем пользователя через API
     fitness_request = FitnessAuthRequest()
-    print(password_token)
+    logger.debug(f"🔑 Password token: {password_token}")
     result = await fitness_request.auth_and_register(
         pass_token=password_token,
         password=password,
@@ -181,11 +197,12 @@ async def process_password(message: Message, state: FSMContext):
         # Сохраняем пользователя в базу данных
         user_id = message.from_user.id
         # result = await fitness_request.auth_client(int(phone[1:]), password)
-        print(result)
+        logger.debug(f"📊 Результат регистрации: {result}")
         user_token = result.get("data", {}).get("user_token", "")
         
         if user_token:
             create_or_update_user(user_id, user_token)
+            logger.info(f"🎉 Регистрация успешно завершена для пользователя {user_id}")
             await message.answer(
                 f"🎉 Регистрация успешно завершена!\n\n"
                 f"Добро пожаловать, {name} {last_name}!\n"
@@ -193,6 +210,7 @@ async def process_password(message: Message, state: FSMContext):
                 reply_markup=main_menu()
             )
         else:
+            logger.error(f"❌ Не удалось получить user_token для пользователя {user_id}")
             await message.answer(
                 "Регистрация завершена, но не удалось получить токен пользователя.\n"
                 "Пожалуйста, обратитесь в поддержку.",

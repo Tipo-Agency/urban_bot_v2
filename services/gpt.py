@@ -1,8 +1,11 @@
+import logging
 import aiohttp
 import os
 from dotenv import load_dotenv
 
 load_dotenv()
+
+logger = logging.getLogger(__name__)
 
 OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
 OPENROUTER_API_URL = "https://openrouter.ai/api/v1/chat/completions"
@@ -45,6 +48,8 @@ def is_valid_name(name: str) -> bool:
 async def get_llm_response(user_message: str, telegram_name: str = "", history: list = None) -> str:
     user_name = telegram_name if is_valid_name(telegram_name) else ""
     history = history or []
+    
+    logger.debug(f"🤖 Запрос к GPT для пользователя '{user_name}': {user_message[:50]}...")
 
     system_prompt = f"""
     Ты — специалист поддержки сервиса Urban210.
@@ -70,9 +75,15 @@ async def get_llm_response(user_message: str, telegram_name: str = "", history: 
         "messages": messages
     }
 
-    async with aiohttp.ClientSession() as session:
-        async with session.post(OPENROUTER_API_URL, json=data, headers=headers) as resp:
-            res = await resp.json()
-            return res["choices"][0]["message"]["content"]
+    try:
+        async with aiohttp.ClientSession() as session:
+            async with session.post(OPENROUTER_API_URL, json=data, headers=headers) as resp:
+                res = await resp.json()
+                response_content = res["choices"][0]["message"]["content"]
+                logger.debug(f"✅ Получен ответ от GPT: {response_content[:50]}...")
+                return response_content
+    except Exception as e:
+        logger.error(f"❌ Ошибка при запросе к GPT: {e}")
+        return "Извините, произошла ошибка при обработке вашего запроса. Пожалуйста, попробуйте позже или обратитесь к оператору."
 
 

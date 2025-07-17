@@ -1,3 +1,4 @@
+import logging
 import os
 
 from aiohttp import BasicAuth, ClientSession, ClientTimeout
@@ -5,6 +6,8 @@ from dotenv import load_dotenv
 from datetime import datetime
 
 load_dotenv()
+
+logger = logging.getLogger(__name__)
 
 
 class FitnessAuthRequest:
@@ -28,12 +31,13 @@ class FitnessAuthRequest:
             async with ClientSession(auth=self.auth, timeout=self.timeout) as session:
                 async with session.get(url, headers=headers) as response:
                     if response.status == 200:
+                        logger.debug(f"✅ Успешный запрос get_client")
                         return await response.json()
                     else:
-                        print(f"Error: {response.status}")
+                        logger.error(f"❌ Ошибка get_client: {response.status}")
                         return None
         except Exception as e:
-            print(f"Connection error: {e}")
+            logger.error(f"❌ Ошибка соединения get_client: {e}")
             return None
 
     async def auth_client(self, phone: int, password: str):
@@ -48,13 +52,14 @@ class FitnessAuthRequest:
             async with ClientSession(auth=self.auth, timeout=self.timeout) as session:
                 async with session.post(url, headers=headers, json=data) as response:
                     if response.status == 200:
+                        logger.debug(f"✅ Успешная авторизация клиента")
                         return await response.json()
                     else:
-                        print(f"Error: {response.status}")
-                        print(await response.text())
+                        logger.error(f"❌ Ошибка auth_client: {response.status}")
+                        logger.error(f"❌ Ответ сервера: {await response.text()}")
                         return None
         except Exception as e:
-            print(f"Connection error: {e}")
+            logger.error(f"❌ Ошибка соединения auth_client: {e}")
             return None
 
     async def auth_and_register(
@@ -89,13 +94,14 @@ class FitnessAuthRequest:
             async with ClientSession(auth=self.auth, timeout=self.timeout) as session:
                 async with session.post(url, headers=headers, json=data) as response:
                     if response.status == 200:
+                        logger.debug(f"✅ Успешная регистрация и авторизация")
                         return await response.json()
                     else:
-                        print(f"Error Code: {response.status}")
-                        print(await response.text())
+                        logger.error(f"❌ Ошибка auth_and_register: {response.status}")
+                        logger.error(f"❌ Ответ сервера: {await response.text()}")
                         return None
         except Exception as e:
-            print(f"Connection error: {e}")
+            logger.error(f"❌ Ошибка соединения auth_and_register: {e}")
             return None
 
     async def confirm_phone(self, phone: int, code: str):
@@ -115,12 +121,13 @@ class FitnessAuthRequest:
                         url, headers=headers, json=data
                     ) as response:
                         if response.status == 200:
+                            logger.debug(f"✅ Успешная отправка кода подтверждения")
                             return await response.json()
                         else:
-                            print(f"Error: {response.status}")
+                            logger.error(f"❌ Ошибка отправки кода: {response.status}")
                             return None
             except Exception as e:
-                print(f"Connection error: {e}")
+                logger.error(f"❌ Ошибка соединения при отправке кода: {e}")
                 return None
         if code:
             headers = {"apikey": self.API_KEY or "", "Content-Type": "application/json"}
@@ -140,10 +147,10 @@ class FitnessAuthRequest:
                             else:
                                 return None
                         else:
-                            print(f"Error: {response.status}")
+                            logger.error(f"❌ Ошибка подтверждения кода: {response.status}")
                             return None
             except Exception as e:
-                print(f"Connection error: {e}")
+                logger.error(f"❌ Ошибка соединения при подтверждении кода: {e}")
                 return None
         return False
 
@@ -173,12 +180,13 @@ class FitnessAuthRequest:
             async with ClientSession(auth=self.auth, timeout=self.timeout) as session:
                 async with session.post(url, headers=headers, json=data) as response:
                     if response.status == 200:
+                        logger.debug(f"✅ Успешная установка пароля")
                         return await response.json()
                     else:
-                        print(f"Error: {response.status}")
+                        logger.error(f"❌ Ошибка set_password: {response.status}")
                         return None
         except Exception as e:
-            print(f"Connection error: {e}")
+            logger.error(f"❌ Ошибка соединения set_password: {e}")
             return None
 
 
@@ -252,10 +260,10 @@ class FitnessSubscriptionRequest(FitnessAuthRequest):
 
                         return {"subscription": subscription}
                     else:
-                        print(f"Error: {response.status}")
+                        logger.error(f"❌ Ошибка get_subscription_details: {response.status}")
                         return None
         except Exception as e:
-            print(f"Connection error: {e}")
+            logger.error(f"❌ Ошибка соединения get_subscription_details: {e}")
             return None
 
     async def get_payment_link(
@@ -277,12 +285,13 @@ class FitnessSubscriptionRequest(FitnessAuthRequest):
                 async with session.post(url, headers=headers, json=data) as response:
                     if response.status == 200:
                         result = await response.json()
+                        logger.debug(f"✅ Получена ссылка на оплату")
                         return result.get("data", {}).get("link", "")
                     else:
-                        print(f"Error: {response.status}")
+                        logger.error(f"❌ Ошибка get_payment_link: {response.status}")
                         return None
         except Exception as e:
-            print(f"Connection error: {e}")
+            logger.error(f"❌ Ошибка соединения get_payment_link: {e}")
             return None
         
     async def get_user_subscriptions(self):
@@ -316,10 +325,10 @@ class FitnessSubscriptionRequest(FitnessAuthRequest):
                                 ]
                             }
                     else:
-                        print(f"Error: {response.status}")
+                        logger.error(f"❌ Ошибка get_user_subscriptions: {response.status}")
                         return None
         except Exception as e:
-            print(f"Connection error: {e}")
+            logger.error(f"❌ Ошибка соединения get_user_subscriptions: {e}")
             return None
         
     async def check_payment(self, subscription_id: str):
@@ -338,6 +347,6 @@ class FitnessSubscriptionRequest(FitnessAuthRequest):
                             if date_part == today:
                                 return True
                         except Exception as e:
-                            print(f"Date parsing error: {e}")
+                            logger.error(f"❌ Ошибка парсинга даты: {e}")
                             continue
         return False

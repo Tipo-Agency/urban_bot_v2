@@ -1,3 +1,4 @@
+import logging
 from aiogram import Router, F
 from aiogram.types import Message
 from db import get_user_token_by_user_id
@@ -5,15 +6,21 @@ from api.requests import FitnessSubscriptionRequest
 from keyboards import get_cabinet_keyboard
 from datetime import datetime
 
+logger = logging.getLogger(__name__)
+
 router = Router()
 
 
 @router.message(F.text == "Личный кабинет")
 async def cabinet_handler(message: Message):
-    user_data = get_user_token_by_user_id(message.from_user.id)
+    user_id = message.from_user.id
+    logger.info(f"👤 Запрос личного кабинета от пользователя {user_id}")
+    
+    user_data = get_user_token_by_user_id(user_id)
     user_token = user_data.get('user_token') if user_data else None
 
     if not user_token:
+        logger.warning(f"⚠️ Попытка доступа к личному кабинету без авторизации: {user_id}")
         await message.answer("❌ Вы еще не авторизованы в системе.")
         return
 
@@ -22,6 +29,7 @@ async def cabinet_handler(message: Message):
     client_info = await fitness_request.get_client()
 
     if not client_info or not client_info.get("result"):
+        logger.error(f"❌ Не удалось получить данные профиля для пользователя {user_id}")
         await message.answer("❌ Не удалось получить данные профиля. Попробуйте позже.")
         return
 
@@ -76,7 +84,7 @@ async def cabinet_handler(message: Message):
             f"💳 <b>Текущий тариф:</b> {title}\n"
             f"<b>Начало:</b> {active_date}\n"
             f"<b>Окончание:</b> {end_date}\n"
-            f"<b>Осталось:</b> {days_left}\n"
+            f"<b>Осталось:</b> {days_left} дней\n"
             f"<b>Цена:</b> {price} ₽/мес\n"
             f"<b>Статус:</b> {status}\n"
         )
