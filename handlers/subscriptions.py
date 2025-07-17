@@ -6,7 +6,7 @@ from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton, ReplyKeybo
 from db import get_user_token_by_user_id
 from messages import GREET_MESSAGE, get_subscriptions_from_api
 from keyboards import main_menu, get_payment_link_keyboard
-from api.requests import FitnessAuthRequest
+from api.requests import FitnessAuthRequest, FitnessSubscriptionRequest
 
 router = Router()
 
@@ -128,7 +128,7 @@ async def subscription_variant_handler(message: Message, state: FSMContext):
     
     # Получаем детальную информацию о подписке
     try:
-        fitness_request = FitnessAuthRequest(user_token=user_token)
+        fitness_request = FitnessSubscriptionRequest(user_token=user_token)
         details = await fitness_request.get_subscription_details(selected_variant['sub_id'])
         print(f"🔍 Получены детали подписки: {details}")
         
@@ -244,7 +244,7 @@ async def buy_subscription_handler(callback: CallbackQuery):
         if not user_token:
             await callback.message.answer("❌ Ошибка при получении ссылки на оплату. Пожалуйста, попробуйте позже.", reply_markup=main_menu())
         else:
-            fitness_request = FitnessAuthRequest(user_token=user_token)
+            fitness_request = FitnessSubscriptionRequest(user_token=user_token)
             url = await fitness_request.get_payment_link(
                 subscription_id=sub_id,
                 fee_id=sub_fee_id,
@@ -252,7 +252,19 @@ async def buy_subscription_handler(callback: CallbackQuery):
             if not url:
                 await callback.message.answer("❌ Ошибка при получении ссылки на оплату. Пожалуйста, попробуйте позже.", reply_markup=main_menu())
             else:
-                await callback.message.edit_text(pay_message, reply_markup=get_payment_link_keyboard(url))
+                await callback.message.edit_text(pay_message, reply_markup=get_payment_link_keyboard(url=url, subscription_id=sub_id))
 
 
+@router.callback_query(F.data.regexp(r"^check_payment:(.+)$"))
+async def check_payment_handler(callback: CallbackQuery):
+    subscription_id = callback.data.split(":")[1]
+    user_token = get_user_token_by_user_id(callback.from_user.id).get('user_token', '')
 
+    if user_token and subscription_id:
+        fitness_request = FitnessSubscriptionRequest(user_token=user_token)
+        payment_status = await fitness_request.check_payment(subscription_id)
+
+        if payment_status:
+            await callback.message.answer("✅ Спасибо! Ваш платеж успешно подтвержден.", reply_markup=main_menu())
+        else:
+            await callback.message.answer("❌ Платеж не выполнен", reply_markup=main_menu())

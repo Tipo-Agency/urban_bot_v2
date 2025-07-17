@@ -23,11 +23,14 @@ def get_cabinet_keyboard():
         ]
     )
 
-def get_payment_link_keyboard(url: str):
+def get_payment_link_keyboard(url: str, subscription_id: str):
     return InlineKeyboardMarkup(
         inline_keyboard=[
             [
                 InlineKeyboardButton(text="💳 Оплатить", url=url)
+            ],
+            [
+                InlineKeyboardButton(text="✅ Я оплатил(а)", callback_data=f"check_payment:{subscription_id}"),
             ],
             [
                 InlineKeyboardButton(text="🔙 Назад", callback_data="back_to_subscriptions")

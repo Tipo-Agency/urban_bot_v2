@@ -39,9 +39,9 @@ def get_pay_message(title: str, price: int) -> str:
 async def get_subscriptions_from_api(user_token: str = None):
     """Получает реальные данные подписок из API"""
     try:
-        from api.requests import FitnessAuthRequest
+        from api.requests import FitnessSubscriptionRequest
         
-        fitness_request = FitnessAuthRequest(user_token)
+        fitness_request = FitnessSubscriptionRequest(user_token)
         result = await fitness_request.get_subscriptions()
         
         if result and result.get("subscriptions"):

@@ -1,8 +1,9 @@
 from aiogram import Router, F
 from aiogram.types import Message
 from db import get_user_token_by_user_id
-from api.requests import FitnessAuthRequest
+from api.requests import FitnessSubscriptionRequest
 from keyboards import get_cabinet_keyboard
+import datetime
 
 router = Router()
 
@@ -16,7 +17,9 @@ async def cabinet_handler(message: Message):
         await message.answer("❌ Вы еще не авторизованы в системе.")
         return
 
-    client_info = await FitnessAuthRequest(user_token=user_token).get_client()
+    # информация о пользователе
+    fitness_request = FitnessSubscriptionRequest(user_token=user_token)
+    client_info = await fitness_request.get_client()
 
     if not client_info or not client_info.get("result"):
         await message.answer("❌ Не удалось получить данные профиля. Попробуйте позже.")
@@ -24,7 +27,6 @@ async def cabinet_handler(message: Message):
 
     data = client_info.get("data", {})
 
-    # Формируем красивое сообщение
     fio = f"{data.get('last_name', '')} {data.get('name', '')} {data.get('second_name', '')}".strip()
     email = data.get("email", "—")
     phone = data.get("phone", "—")
@@ -36,13 +38,25 @@ async def cabinet_handler(message: Message):
     tags = ", ".join([tag.get("title", "") for tag in data.get("tags", [])]) or "—"
     promo_code = ", ".join([promo.get("code", "") for promo in data.get("promo_codes", [])]) or "—"
 
+    #информация о подписке
+    subsctiptions_data = await fitness_request.get_user_subscriptions()
+    first_subscription = subsctiptions_data.get("subscriptions", {})[0]
 
-    # В текущем коде есть потенциальная ошибка в использовании тернарного оператора внутри f-строк.
-    # Конструкция:
-    # f"<b>Промокоды:</b> {promo_code}\n\n" if promo_code else ""
-    # приведёт к тому, что если promo_code пустой, то ВСЁ остальное после этого (начиная с тарифа) не попадёт в итоговую строку.
-    # Это связано с тем, что тернарный оператор применяется ко всей оставшейся части скобок, а не только к одной строке.
-    # Исправленный вариант — вынести блок с промокодами отдельно:
+    subsctiption_id = first_subscription.get("item_id", "")
+    title = first_subscription.get("title")
+    status = first_subscription.get("status")
+    active_date = first_subscription.get("active_date", "")
+    end_date = first_subscription.get("end_date", "")
+    price = first_subscription.get("recurrent_details", {}).get("payment_amount", "")
+
+    if active_date and end_date:
+        # Преобразуем строки в datetime-объекты
+        active = datetime.strptime(active_date, "%Y-%m-%d").date()
+        end = datetime.strptime(end_date, "%Y-%m-%d").date()
+
+        # Считаем, сколько дней осталось
+        days_left = (end - datetime.today().date()).days
+    
 
     msg = (
         "👤 <b>Личный кабинет</b>\n\n"
@@ -52,19 +66,19 @@ async def cabinet_handler(message: Message):
         f"<b>Дата рождения:</b> {birthday}\n"
         f"<b>Пол:</b> {sex_str}\n"
         f"<b>Клуб:</b> {club_name}\n"
-        f"<b>Теги:</b> {tags}\n"
+        f"<b>Теги:</b> {tags}\n\n"
     )
     if promo_code:
         msg += f"<b>Промокоды:</b> {promo_code}\n\n"
-    else:
-        msg += "\n"
-    msg += (
-        f"💳 <b>Текущий тариф:</b> SmartFit\n"
-        f"<b>Начало:</b> 10.07.2025\n"
-        f"<b>Окончание:</b> 10.08.2025\n"
-        f"<b>Осталось:</b> 20 дней\n"
-        f"<b>Цена:</b> 1000 ₽/мес\n"
-        f"<b>Статус:</b> Активен\n"
-    )
+
+    if first_subscription:
+        msg += (
+            f"💳 <b>Текущий тариф:</b> {title}\n"
+            f"<b>Начало:</b> {active_date}\n"
+            f"<b>Окончание:</b> {end_date}\n"
+            f"<b>Осталось:</b> {days_left}\n"
+            f"<b>Цена:</b> {price} ₽/мес\n"
+            f"<b>Статус:</b> {status}\n"
+        )
 
     await message.answer(msg, reply_markup=get_cabinet_keyboard())

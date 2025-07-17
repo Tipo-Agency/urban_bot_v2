@@ -2,6 +2,7 @@ import os
 
 from aiohttp import BasicAuth, ClientSession, ClientTimeout
 from dotenv import load_dotenv
+from datetime import datetime
 
 load_dotenv()
 
@@ -180,6 +181,8 @@ class FitnessAuthRequest:
             print(f"Connection error: {e}")
             return None
 
+
+class FitnessSubscriptionRequest(FitnessAuthRequest):
     async def get_subscriptions(self):
         url = f"{self.BASE_URL}/price_list?type=membership&club_id=b5f85d29-6727-11e9-80cb-00155d066506"
         headers = {
@@ -281,3 +284,60 @@ class FitnessAuthRequest:
         except Exception as e:
             print(f"Connection error: {e}")
             return None
+        
+    async def get_user_subscriptions(self):
+        """Получает список подписок пользователя"""
+        url = f"{self.BASE_URL}/tickets?type=membership"
+        headers = {"apikey": self.API_KEY, "usertoken": self.user_token}
+        try:
+            async with ClientSession(auth=self.auth, timeout=self.timeout) as session:
+                async with session.get(url, headers=headers) as response:
+                    if response.status == 200:
+                        data = await response.json()
+                        if data["result"] == "true":
+                            return {
+                                "subscriptions": [
+                                    {
+                                        "ticket_id": item.get("ticket_id", ""),
+                                        "item_id": item.get("item_id", ""),
+                                        "type": item.get("type", ""),
+                                        "status": item.get("status", ""),
+                                        "end_date": item.get("end_date", ""),
+                                        "status_date": item.get("status_date", ""),
+                                        "active_date": item.get("active_date", ""),
+                                        "title": item.get("title", ""),
+                                        "service_list": item.get("service_list", []),
+                                        "recurrent": item.get("recurrent", False),
+                                        "recurrent_details": item.get("recurrent_details", {}),
+                                        "available_time": item.get("available_time", ""),
+                                        "avialable_actions": item.get("available_actions", [])
+                                    }
+                                    for item in data.get("data", [])
+                                ]
+                            }
+                    else:
+                        print(f"Error: {response.status}")
+                        return None
+        except Exception as e:
+            print(f"Connection error: {e}")
+            return None
+        
+    async def check_payment(self, subscription_id: str):
+        """Проверяет статус оплаты подписки"""
+        subscriptions_data = await self.get_user_subscriptions()
+        if subscriptions_data:
+            for subscription in subscriptions_data.get("subscriptions", []):
+                if subscription.get("item_id") == subscription_id:
+                    if subscription.get("status") == "active" and subscription.get("active_date"):
+                        #Проверяем, совпадает ли дата активации с сегодняшней датой
+                        try:
+                            active_date = subscription.get("active_date")
+                            # Предполагаем формат даты "YYYY-MM-DD" или "YYYY-MM-DDTHH:MM:SS"
+                            date_part = active_date.split("T")[0]
+                            today = datetime.now().date().isoformat()
+                            if date_part == today:
+                                return True
+                        except Exception as e:
+                            print(f"Date parsing error: {e}")
+                            continue
+        return False
