@@ -126,7 +126,7 @@ async def freeze_confirmed_handler(callback: CallbackQuery):
 
     if freeze_response:
         if freeze_response.get("result"):
-            await callback.message.edit_text("✅ Подписка успешно отменена.", reply_markup=main_menu())
+            await callback.message.edit_text("✅ Подписка успешно заморожена.", get_cabinet_keyboard(ticket_id=ticket_id, is_subscriped=True, is_freezed=True))
     else:
-        await callback.message.edit_text("❌ Не удалось заморозить подписку. Ваш лимит на заморозку исчерпан", reply_markup=main_menu())
+        await callback.message.edit_text("❌ Не удалось заморозить подписку. Ваш лимит на заморозку исчерпан", get_cabinet_keyboard(ticket_id=ticket_id, is_subscriped=True, is_freezed=False))
     await callback.answer()
