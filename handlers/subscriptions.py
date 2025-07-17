@@ -271,3 +271,4 @@ async def check_payment_handler(callback: CallbackQuery):
             await callback.message.edit_text("✅ Спасибо! Ваш платеж успешно подтвержден.", reply_markup=main_menu())
         else:
             await callback.message.edit_text("❌ Платеж не выполден, если возникли проблемы, свяжитесь с администратором", reply_markup=main_menu())
+

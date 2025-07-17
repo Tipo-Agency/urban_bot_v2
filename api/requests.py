@@ -331,6 +331,24 @@ class FitnessSubscriptionRequest(FitnessAuthRequest):
             logger.error(f"❌ Ошибка соединения get_user_subscriptions: {e}")
             return None
         
+    async def cancel_subscription(self, recurrent_id: str):
+        """Отменяет подписку пользователя"""
+        url = f"{self.BASE_URL}/cancellation_contract?id={recurrent_id}&reason_id=d3bc2a44-9aa2-11ee-bbbe-8b03c544a7da"
+        headers = {"apikey": self.API_KEY, "usertoken": self.user_token}
+        try:
+            async with ClientSession(auth=self.auth, timeout=self.timeout) as session:
+                async with session.delete(url, headers=headers) as response:
+                    if response.status == 200:
+                        logger.debug(f"✅ Подписка {recurrent_id} успешно отменена")
+                        logger.degug(f"✅ Данные Ответа: {await response.json()}")
+                        return await response.json()
+                    else:
+                        logger.error(f"❌ Ошибка cancel_subscription: {response.status}")
+                        return None
+        except Exception as e:
+            logger.error(f"❌ Ошибка соединения cancel_subscription: {e}")
+            return None
+        
     async def check_payment(self, subscription_id: str):
         """Проверяет статус оплаты подписки"""
         subscriptions_data = await self.get_user_subscriptions()

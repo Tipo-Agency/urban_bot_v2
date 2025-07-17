@@ -3,8 +3,9 @@ from aiogram import Router, F
 from aiogram.types import Message
 from db import get_user_token_by_user_id
 from api.requests import FitnessSubscriptionRequest
-from keyboards import get_cabinet_keyboard
+from keyboards import get_cabinet_keyboard, confirm_cancel_subscription
 from datetime import datetime
+from aiogram.types import CallbackQuery
 
 logger = logging.getLogger(__name__)
 
@@ -56,6 +57,7 @@ async def cabinet_handler(message: Message):
     active_date = first_subscription.get("active_date", "")
     end_date = first_subscription.get("end_date", "")
     price = first_subscription.get("recurrent_details", {}).get("payment_amount", "")
+    recurrent_id = first_subscription.get("recurrent_details", {}).get("id", "")
 
     if active_date and end_date:
         # Преобразуем строки в datetime-объекты
@@ -89,4 +91,35 @@ async def cabinet_handler(message: Message):
             f"<b>Статус:</b> {status}\n"
         )
 
-    await message.answer(msg, reply_markup=get_cabinet_keyboard())
+    await message.answer(msg, reply_markup=get_cabinet_keyboard(recurrent_id=recurrent_id))
+
+@router.callback_query(F.data.regexp(r"^cancel_subscription:(.+)$"))
+async def cancel_subscription_handler(callback: CallbackQuery):
+    recurrent_id = callback.data.split(":")[1]
+
+    if not recurrent_id:
+        await callback.message.edit_text("❌ Не удалось отменить подписку: У вас нету активной подписки")
+        return
+    
+    await callback.message.edit_text("Вы уверены, что хотите отменить подписку?", reply_markup=confirm_cancel_subscription(recurrent_id=recurrent_id))
+    await callback.answer()
+
+
+@router.callback_query(F.data.regexp(r"^cancel_confirmed:(.+)$"))
+async def cancel_confirmed_handler(callback: CallbackQuery):
+    recurrent_id = callback.data.split(":")[1]
+    user_token = get_user_token_by_user_id(callback.from_user.id).get('user_token', '')
+
+    if not recurrent_id:
+        await callback.message.edit_text("❌ Не удалось отменить подписку: У вас нету активной подписки")
+        await callback.answer()
+        return
+
+    fitness_request = FitnessSubscriptionRequest(user_token=user_token)
+    cancel_response = await fitness_request.cancel_subscription(recurrent_id=recurrent_id)
+
+    if cancel_response.get("result"):
+        await callback.message.edit_text("✅ Подписка успешно отменена.", reply_markup=get_cabinet_keyboard())
+    else:
+        await callback.message.edit_text("❌ Не удалось отменить подписку. Попробуйте позже.", reply_markup=get_cabinet_keyboard())
+    await callback.answer()

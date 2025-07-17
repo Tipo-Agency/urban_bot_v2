@@ -13,12 +13,12 @@ def main_menu():
         resize_keyboard=True
     )
 
-def get_cabinet_keyboard():
+def get_cabinet_keyboard(recurrent_id: str = ""):
     return InlineKeyboardMarkup(
         inline_keyboard=[
             [
                 InlineKeyboardButton(text="🔄 Изменить подписку", callback_data="change_subscription"),
-                InlineKeyboardButton(text="❌ Отменить подписку", callback_data="cancel_subscription")
+                InlineKeyboardButton(text="❌ Отменить подписку", callback_data=f"cancel_subscription:{recurrent_id}")
             ],
             [
                 InlineKeyboardButton(text="🏠 В главное меню", callback_data="back_to_main")
@@ -37,6 +37,16 @@ def get_payment_link_keyboard(url: str, subscription_id: str):
             ],
             [
                 InlineKeyboardButton(text="🔙 Назад", callback_data="back_to_subscriptions")
+            ],
+        ]
+    )
+
+def confirm_cancel_subscription(recurrent_id: str = ""):
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(text="Да", callback_data=f"cancel_confirmed:{recurrent_id}"),
+                InlineKeyboardButton(text="🔙 Назад")
             ],
         ]
     )
