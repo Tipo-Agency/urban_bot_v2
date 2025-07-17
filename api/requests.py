@@ -294,8 +294,7 @@ class FitnessSubscriptionRequest(FitnessAuthRequest):
                 async with session.get(url, headers=headers) as response:
                     if response.status == 200:
                         data = await response.json()
-                        print(f"Получены подписки: {data}")
-                        if data["result"] == "true":
+                        if data.get("result"):
                             return {
                                 "subscriptions": [
                                     {
@@ -311,7 +310,7 @@ class FitnessSubscriptionRequest(FitnessAuthRequest):
                                         "recurrent": item.get("recurrent", False),
                                         "recurrent_details": item.get("recurrent_details", {}),
                                         "available_time": item.get("available_time", ""),
-                                        "avialable_actions": item.get("available_actions", [])
+                                        "available_actions": item.get("avialable_actions", [])
                                     }
                                     for item in data.get("data", [])
                                 ]

@@ -40,7 +40,6 @@ async def cabinet_handler(message: Message):
 
     #информация о подписке
     subscriptions_data = await fitness_request.get_user_subscriptions()
-    print(f"🔍 1111Получены данные подписок: {subscriptions_data}")
     first_subscription = subscriptions_data.get("subscriptions", [{}])[0]
 
     subsctiption_id = first_subscription.get("item_id", "")
