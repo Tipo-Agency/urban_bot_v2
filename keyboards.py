@@ -8,22 +8,33 @@ def main_menu():
         keyboard=[
             [KeyboardButton(text="Личный кабинет")],
             [KeyboardButton(text="Подписки")],
-            [KeyboardButton(text="Задать вопрос")]
+            # [KeyboardButton(text="Задать вопрос")]
         ],
         resize_keyboard=True
     )
 
-def get_cabinet_keyboard(recurrent_id: str = ""):
-    return InlineKeyboardMarkup(
+def get_cabinet_keyboard(ticket_id: str = "", is_subscriped: bool = False, is_freezed: bool = False):
+    if not is_subscriped:
         inline_keyboard=[
             [
-                InlineKeyboardButton(text="🔄 Изменить подписку", callback_data="change_subscription"),
-                InlineKeyboardButton(text="❌ Отменить подписку", callback_data=f"cancel_subscription:{recurrent_id}")
+                InlineKeyboardButton(text="Выбрать подписку", callback_data="select_subscription") 
             ],
             [
                 InlineKeyboardButton(text="🏠 В главное меню", callback_data="back_to_main")
             ],
         ]
+    if is_subscriped:
+        inline_keyboard = [
+            [
+                # InlineKeyboardButton(text="Отменить подписку", callback_data=f"cancel_subscription:{ticket_id}"),
+                InlineKeyboardButton(text="Заморозить подписку", callback_data=f"freeze_subscription:{ticket_id}") if not is_freezed else InlineKeyboardButton(text="Разморозить подписку", callback_data=f"unfreeze_subscription:{ticket_id}")
+            ],
+            [
+                InlineKeyboardButton(text="🏠 В главное меню", callback_data="back_to_main")
+            ]
+        ]
+    return InlineKeyboardMarkup(
+        inline_keyboard=inline_keyboard
     )
 
 def get_payment_link_keyboard(url: str, subscription_id: str):
@@ -41,11 +52,11 @@ def get_payment_link_keyboard(url: str, subscription_id: str):
         ]
     )
 
-def confirm_cancel_subscription(recurrent_id: str = ""):
+def confirm_freeze_subscription(ticket_id: str = ""):
     return InlineKeyboardMarkup(
         inline_keyboard=[
             [
-                InlineKeyboardButton(text="Да", callback_data=f"cancel_confirmed:{recurrent_id}"),
+                InlineKeyboardButton(text="Да", callback_data=f"freeze_confirmed:{ticket_id}"),
                 InlineKeyboardButton(text="🔙 Назад", callback_data="back_to_subscriptions")
             ]
         ]

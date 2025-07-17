@@ -349,6 +349,56 @@ class FitnessSubscriptionRequest(FitnessAuthRequest):
             logger.error(f"❌ Ошибка соединения cancel_subscription: {e}")
             return None
         
+    async def freeze_subscription(self, ticket_id: str, days: int):
+        """Замораживает подписку пользователя на указанное количество дней"""
+        url = f"{self.BASE_URL}/freeze_ticket"
+        headers = {"apikey": self.API_KEY, "usertoken": self.user_token}
+        data = {
+            "ticket_id": ticket_id,
+            "date": str(datetime.now().strftime("%Y-%m-%d")),
+            "count": days
+        }
+        try:
+            async with ClientSession(auth=self.auth, timeout=self.timeout) as session:
+                async with session.post(url, headers=headers, json=data) as response:
+                    if response.status == 200:
+                        logger.debug(f"✅ Подписка {ticket_id} успешно заморожена на {days} дней")
+                        logger.debug(f"✅ Данные Ответа: {await response.json()}")
+                        data = await response.json()
+                        if data.get("result"):
+                            return True
+                        else:
+                            logger.error(f"❌ Ошибка freeze_subscription: {data.get('error', 'Unknown error')}")
+                            return False
+                    else:
+                        logger.error(f"❌ Ошибка freeze_subscription: {response.status}")
+                        return None
+        except Exception as e:
+            logger.error(f"❌ Ошибка соединения freeze_subscription: {e}")
+            return None
+        
+    async def unfreeze_subscription(self, ticket_id: str):
+        """Размораживает подписку пользователя"""
+        url = f"{self.BASE_URL}/unfreeze_ticket"
+        headers = {"apikey": self.API_KEY, "usertoken": self.user_token}
+        data = {
+            "ticket_id": ticket_id,
+            "date": str(datetime.now().strftime("%Y-%m-%d"))
+        }
+        try:
+            async with ClientSession(auth=self.auth, timeout=self.timeout) as session:
+                async with session.post(url, headers=headers, json=data) as response:
+                    if response.status == 200:
+                        logger.debug(f"✅ Подписка {ticket_id} успешно разморожена")
+                        logger.debug(f"✅ Данные Ответа: {await response.json()}")
+                        return await response.json()
+                    else:
+                        logger.error(f"❌ Ошибка unfreeze_subscription: {response.status}")
+                        return None
+        except Exception as e:
+            logger.error(f"❌ Ошибка соединения unfreeze_subscription: {e}")
+            return None
+        
     async def check_payment(self, subscription_id: str):
         """Проверяет статус оплаты подписки"""
         subscriptions_data = await self.get_user_subscriptions()
