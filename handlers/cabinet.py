@@ -39,8 +39,9 @@ async def cabinet_handler(message: Message):
     promo_code = ", ".join([promo.get("code", "") for promo in data.get("promo_codes", [])]) or "—"
 
     #информация о подписке
-    subsctiptions_data = await fitness_request.get_user_subscriptions()
-    first_subscription = subsctiptions_data.get("subscriptions", {})[0]
+    subscriptions_data = await fitness_request.get_user_subscriptions()
+    print(f"🔍 1111Получены данные подписок: {subscriptions_data}")
+    first_subscription = subscriptions_data.get("subscriptions", [{}])[0]
 
     subsctiption_id = first_subscription.get("item_id", "")
     title = first_subscription.get("title")
