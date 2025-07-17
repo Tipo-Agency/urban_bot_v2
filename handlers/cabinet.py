@@ -118,8 +118,9 @@ async def cancel_confirmed_handler(callback: CallbackQuery):
     fitness_request = FitnessSubscriptionRequest(user_token=user_token)
     cancel_response = await fitness_request.cancel_subscription(recurrent_id=recurrent_id)
 
-    if cancel_response.get("result"):
-        await callback.message.edit_text("✅ Подписка успешно отменена.", reply_markup=get_cabinet_keyboard())
+    if cancel_response:
+        if cancel_response.get("result"):
+            await callback.message.edit_text("✅ Подписка успешно отменена.", reply_markup=get_cabinet_keyboard())
     else:
         await callback.message.edit_text("❌ Не удалось отменить подписку. Попробуйте позже.", reply_markup=get_cabinet_keyboard())
     await callback.answer()

@@ -340,7 +340,7 @@ class FitnessSubscriptionRequest(FitnessAuthRequest):
                 async with session.delete(url, headers=headers) as response:
                     if response.status == 200:
                         logger.debug(f"✅ Подписка {recurrent_id} успешно отменена")
-                        logger.degug(f"✅ Данные Ответа: {await response.json()}")
+                        logger.debug(f"✅ Данные Ответа: {await response.json()}")
                         return await response.json()
                     else:
                         logger.error(f"❌ Ошибка cancel_subscription: {response.status}")
