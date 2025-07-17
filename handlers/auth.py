@@ -3,17 +3,17 @@ from aiogram import Router, F
 from aiogram.types import Message, ReplyKeyboardMarkup, KeyboardButton
 from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
-from keyboards import main_menu
+from keyboards import main_menu, auth_keyboard
 from db import get_user_token_by_user_id, create_or_update_user
 from aiogram.fsm.state import State, StatesGroup
 from api.requests import FitnessAuthRequest
-import re
+from aiogram.types import CallbackQuery
 
 logger = logging.getLogger(__name__)
 
 router = Router()
 
-class AuthStates(StatesGroup):
+class RigisterStates(StatesGroup):
     phone = State()
     code = State()
     last_name = State()
@@ -21,6 +21,10 @@ class AuthStates(StatesGroup):
     second_name = State()
     email = State()
     birth_date = State()
+    password = State()
+
+class LoginStates(StatesGroup):
+    phone = State()
     password = State()
 
 @router.message(Command("start"))
@@ -41,17 +45,101 @@ async def start_handler(message: Message, state: FSMContext):
     await state.clear()
     await message.answer(
         "Добро пожаловать в бот фитнес-клуба! 🏋️‍♂️\n\n"
-        "Для начала работы необходимо зарегистрироваться.\n"
-        "Пожалуйста, введите ваш номер телефона в формате +7XXXXXXXXXX:"
+        "Для начала работы необходимо авторизоватся.\n",
+        reply_markup=auth_keyboard()
     )
-    await state.set_state(AuthStates.phone)
 
+@router.callback_query(F.data == "login")
+async def login_handler(callback: CallbackQuery, state: FSMContext):
+    user_id = callback.from_user.id
+    logger.info(f"🔑 Авторизация пользователя {user_id} начата")
+    
+    await state.clear()
+    await callback.message.answer(
+        "📱 Пожалуйста, введите ваш номер телефона в формате +7XXXXXXXXXX:",
+    )
+    await state.set_state(LoginStates.phone)
 
-@router.message(AuthStates.phone, F.text)
+@router.message(LoginStates.phone, F.text)
+async def process_login_phone(message: Message, state: FSMContext):
+    phone = message.text.strip()
+    user_id = message.from_user.id
+    logger.debug(f"📱 Получен номер телефона от пользователя {user_id}: {phone}")
+    
+    # Проверяем формат номера
+    # if not re.match(r'^\+7\d{10}$', phone):
+    #     await message.answer(
+    #         "Неверный формат номера телефона.\n"
+    #         "Пожалуйста, введите номер в формате +7XXXXXXXXXX"
+    #     )
+    #     return
+    
+    await state.update_data(login_phone=phone)
+
+    await message.answer(
+        "Введите пароль от вашего аккаунта:\n"
+        "(минимум 6 символов)"
+    )
+    await state.set_state(LoginStates.password)
+
+@router.message(LoginStates.password, F.text)
+async def process_login_password(message: Message, state: FSMContext):
+    password = message.text.strip()
+    user_id = message.from_user.id
+    logger.info(f"🔐 Получен пароль от пользователя {user_id}")
+    
+    # Получаем номер телефона из состояния
+    data = await state.get_data()
+    phone = data.get('login_phone')
+    
+    if not phone:
+        logger.error(f"❌ Отсутствует номер телефона в состоянии для пользователя {user_id}")
+        await message.answer("Ошибка. Начните авторизацию заново.")
+        await state.clear()
+        return
+    
+    # Авторизуем пользователя через API
+    fitness_request = FitnessAuthRequest()
+    result = await fitness_request.auth_client(int(phone[1:]), password)
+    
+    if result and result.get('user_token'):
+        user_token = result['user_token']
+        create_or_update_user(user_id, user_token)
+        
+        logger.info(f"✅ Авторизация успешно завершена для пользователя {user_id}")
+        await message.answer(
+            "🎉 Вы успешно авторизованы!\n\n"
+            "Добро Пожаловать в Urban210 Fitness Bot! 🏋️‍♂️\n",
+            reply_markup=main_menu()
+        )
+    else:
+        logger.warning(f"⚠️ Неверный пароль для пользователя {user_id}")
+        await message.answer(
+            "Неверный номер телефона или пароль.\n"
+            "Пожалуйста, попробуйте еще раз:"
+        )
+        await state.clear()
+        return
+    # Очищаем состояние после успешной авторизации
+    await state.clear()
+    
+
+@router.callback_query(F.data == "register")
+async def register_handler(callback: CallbackQuery, state: FSMContext):
+    user_id = callback.from_user.id
+    logger.info(f"📝 Регистрация пользователя {user_id} начата")
+    
+    await state.clear()
+    await callback.message.answer(
+        "📱 Пожалуйста, введите ваш номер телефона в формате +7XXXXXXXXXX:",
+    )
+    await state.set_state(RigisterStates.phone)
+
+@router.message(RigisterStates.phone, F.text)
 async def process_phone_text(message: Message, state: FSMContext):
     phone = message.text.strip()
     user_id = message.from_user.id
-    logger.info(f"📱 Получен номер телефона от пользователя {user_id}: {phone}")
+    logger.debug(f"📱 Получен номер телефона от пользователя {user_id}: {phone}")
     
     # Проверяем формат номера
     # if not re.match(r'^\+7\d{10}$', phone):
@@ -73,7 +161,7 @@ async def process_phone_text(message: Message, state: FSMContext):
             f"Код подтверждения отправлен на номер {phone}\n"
             "Пожалуйста, введите код из WhatsApp:"
         )
-        await state.set_state(AuthStates.code)
+        await state.set_state(RigisterStates.code)
     else:
         logger.error(f"❌ Ошибка отправки кода подтверждения для пользователя {user_id}")
         await message.answer(
@@ -81,7 +169,7 @@ async def process_phone_text(message: Message, state: FSMContext):
             "Пожалуйста, попробуйте еще раз или обратитесь в поддержку."
         )
 
-@router.message(AuthStates.code, F.text)
+@router.message(RigisterStates.code, F.text)
 async def process_code(message: Message, state: FSMContext):
     code = message.text.strip()
     user_id = message.from_user.id
@@ -109,7 +197,7 @@ async def process_code(message: Message, state: FSMContext):
             "Теперь необходимо заполнить ваши данные для регистрации.\n"
             "Введите вашу фамилию:"
         )
-        await state.set_state(AuthStates.last_name)
+        await state.set_state(RigisterStates.last_name)
     else:
         logger.warning(f"⚠️ Неверный код подтверждения для пользователя {user_id}")
         await message.answer(
@@ -117,21 +205,21 @@ async def process_code(message: Message, state: FSMContext):
             "Пожалуйста, попробуйте еще раз:"
         )
 
-@router.message(AuthStates.last_name, F.text)
+@router.message(RigisterStates.last_name, F.text)
 async def process_last_name(message: Message, state: FSMContext):
     last_name = message.text.strip()
     await state.update_data(last_name=last_name)
     await message.answer("Введите ваше имя:")
-    await state.set_state(AuthStates.name)
+    await state.set_state(RigisterStates.name)
 
-@router.message(AuthStates.name, F.text)
+@router.message(RigisterStates.name, F.text)
 async def process_name(message: Message, state: FSMContext):
     name = message.text.strip()
     await state.update_data(name=name)
     await message.answer("Введите ваше отчество (если есть, иначе напишите '-'):")
-    await state.set_state(AuthStates.second_name)
+    await state.set_state(RigisterStates.second_name)
 
-@router.message(AuthStates.second_name, F.text)
+@router.message(RigisterStates.second_name, F.text)
 async def process_second_name(message: Message, state: FSMContext):
     second_name = message.text.strip()
     
@@ -142,23 +230,23 @@ async def process_second_name(message: Message, state: FSMContext):
     await message.answer(
         "Введите вашу электронную почту:"
     )
-    await state.set_state(AuthStates.email)
+    await state.set_state(RigisterStates.email)
 
-@router.message(AuthStates.email, F.text)
+@router.message(RigisterStates.email, F.text)
 async def process_email(message: Message, state: FSMContext):
     email = message.text.strip()
     await state.update_data(email=email)
     await message.answer("Введите вашу дату рождения (в формате ДД.ММ.ГГГГ):")
-    await state.set_state(AuthStates.birth_date)
+    await state.set_state(RigisterStates.birth_date)
 
-@router.message(AuthStates.birth_date, F.text)
+@router.message(RigisterStates.birth_date, F.text)
 async def process_birth_date(message: Message, state: FSMContext):
     birth_date = message.text.strip()
     await state.update_data(birth_date=birth_date)
     await message.answer("Придумайте пароль для вашего аккаунта (минимум 6 символов):")
-    await state.set_state(AuthStates.password)
+    await state.set_state(RigisterStates.password)
 
-@router.message(AuthStates.password, F.text)
+@router.message(RigisterStates.password, F.text)
 async def process_password(message: Message, state: FSMContext):
     password = message.text.strip()
     

@@ -13,6 +13,16 @@ def main_menu():
         resize_keyboard=True
     )
 
+def auth_keyboard():
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(text="Регистрация", callback_data="register"),
+                InlineKeyboardButton(text="Авторизация", callback_data="login")
+            ]
+        ]
+    )
+
 def get_cabinet_keyboard(ticket_id: str = "", is_subscriped: bool = False, is_freezed: bool = False):
     if not is_subscriped:
         inline_keyboard=[
