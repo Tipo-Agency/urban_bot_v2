@@ -101,9 +101,10 @@ async def process_login_password(message: Message, state: FSMContext):
     # Авторизуем пользователя через API
     fitness_request = FitnessAuthRequest()
     result = await fitness_request.auth_client(int(phone[1:]), password)
+
+    user_token = result.get("data", {}).get("user_token", "")
     
-    if result and result.get('user_token'):
-        user_token = result['user_token']
+    if result and user_token:
         create_or_update_user(user_id, user_token)
         
         logger.info(f"✅ Авторизация успешно завершена для пользователя {user_id}")
