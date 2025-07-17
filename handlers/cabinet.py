@@ -122,7 +122,7 @@ async def freeze_confirmed_handler(callback: CallbackQuery):
         return
 
     fitness_request = FitnessSubscriptionRequest(user_token=user_token)
-    freeze_response = await fitness_request.freeze_subscription(ticket_id=ticket_id)
+    freeze_response = await fitness_request.freeze_subscription(ticket_id=ticket_id, days=7)
 
     if freeze_response:
         if freeze_response.get("result"):
