@@ -46,7 +46,7 @@ def confirm_cancel_subscription(recurrent_id: str = ""):
         inline_keyboard=[
             [
                 InlineKeyboardButton(text="Да", callback_data=f"cancel_confirmed:{recurrent_id}"),
-                InlineKeyboardButton(text="🔙 Назад")
-            ],
+                InlineKeyboardButton(text="🔙 Назад", callback_data="back_to_subscriptions")
+            ]
         ]
     )
