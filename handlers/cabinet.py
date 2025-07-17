@@ -3,7 +3,7 @@ from aiogram.types import Message
 from db import get_user_token_by_user_id
 from api.requests import FitnessSubscriptionRequest
 from keyboards import get_cabinet_keyboard
-import datetime
+from datetime import datetime
 
 router = Router()
 
