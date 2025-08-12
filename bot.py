@@ -5,7 +5,7 @@ from aiogram.types import BotCommand
 from aiogram.client.default import DefaultBotProperties
 from aiogram.fsm.storage.memory import MemoryStorage
 from config import BOT_TOKEN, logger
-from handlers import support_router, auth_router, subscriptions_router, cabinet_router
+from handlers import auth_router, subscriptions_router, cabinet_router
 from history import last_seen, chat_history, HISTORY_TIMEOUT
 import time
 import asyncio
@@ -18,7 +18,6 @@ bot = Bot(token=BOT_TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.HTM
 
 dp.include_router(auth_router)
 dp.include_router(cabinet_router)
-dp.include_router(support_router)
 dp.include_router(subscriptions_router)
 
 
@@ -37,7 +36,6 @@ async def auto_cleanup():
 async def on_startup(bot: Bot):
     await bot.set_my_commands([
         BotCommand(command="start", description="Начать"),
-        BotCommand(command="support", description="Спросить у поддержки")
     ])
     # Запускаем auto_cleanup в фоне
     asyncio.create_task(auto_cleanup())

@@ -54,6 +54,8 @@ class FitnessAuthRequest:
                     if response.status == 200:
                         logger.debug(f"✅ Успешная авторизация клиента")
                         return await response.json()
+                    elif response.status == 400:
+                        return False
                     else:
                         logger.error(f"❌ Ошибка auth_client: {response.status}")
                         logger.error(f"❌ Ответ сервера: {await response.text()}")
