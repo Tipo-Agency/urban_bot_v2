@@ -201,6 +201,7 @@ class FitnessSubscriptionRequest(FitnessAuthRequest):
                 async with session.get(url, headers=headers) as response:
                     if response.status == 200:
                         data = await response.json()
+                        logger.debug(f"🔍 Результат get_subscriptions: {data}")
                         return {
                             "subscriptions": [
                                 {
@@ -219,6 +220,7 @@ class FitnessSubscriptionRequest(FitnessAuthRequest):
                         }
                     else:
                         print(f"Error: {response.status}")
+                        logger.error(f"❌ Ошибка get_subscriptions: {response.text}")
                         return None
         except Exception as e:
             print(f"Connection error: {e}")
@@ -271,14 +273,13 @@ class FitnessSubscriptionRequest(FitnessAuthRequest):
         subscription_id: str,
         fee_id: str,
     ):
-        url = f"{self.BASE_URL}/payment_link?service_id={subscription_id}"
+        url = f"{self.BASE_URL}/payment_link"
         headers = {"apikey": self.API_KEY, "usertoken": self.user_token}
         data = {
             "cart": [
                 {"purchase_id": fee_id, "count": 1},
                 {"purchase_id": subscription_id, "count": 1},
             ],
-            # "club_id": "b5f85d29-6727-11e9-80cb-00155d066506",
         }
         try:
             async with ClientSession(auth=self.auth) as session:

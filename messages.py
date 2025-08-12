@@ -47,7 +47,8 @@ async def get_subscriptions_from_api(user_token: str = None):
         
         fitness_request = FitnessSubscriptionRequest(user_token)
         result = await fitness_request.get_subscriptions()
-        
+
+        logger.debug(f"🔍 Результат get_subscriptions: {result}")
         if result and result.get("subscriptions"):
             # Преобразуем данные API в формат, совместимый с текущим кодом
             subscriptions = []
