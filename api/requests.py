@@ -204,28 +204,29 @@ class FitnessSubscriptionRequest(FitnessAuthRequest):
                     if response.status == 200:
                         data = await response.json()
                         logger.debug(f"🔍 Результат get_subscriptions: {data}")
-                        return {
-                            "subscriptions": [
+                        subscriptions = []
+                        for item in data.get("data", []):
+                            fee_data = item.get("fee") or {}
+                            subscriptions.append(
                                 {
                                     "id": item.get("id", ""),
                                     "title": item.get("title", ""),
                                     "price": item.get("price", ""),
                                     "available_time": item.get("available_time", ""),
                                     "fee": {
-                                        "id": item.get("fee", {}).get("id", ""),
-                                        "title": item.get("fee", {}).get("title", ""),
-                                        "price": item.get("fee", {}).get("price", ""),
+                                        "id": fee_data.get("id", "") or "",
+                                        "title": fee_data.get("title", "") or "",
+                                        "price": fee_data.get("price", "") or "",
                                     },
                                 }
-                                for item in data.get("data", [])
-                            ]
-                        }
+                            )
+                        return {"subscriptions": subscriptions}
                     else:
-                        print(f"Error: {response.status}")
-                        logger.error(f"❌ Ошибка get_subscriptions: {response.text}")
+                        error_text = await response.text()
+                        logger.error(f"❌ Ошибка get_subscriptions: {error_text}")
                         return None
         except Exception as e:
-            print(f"Connection error: {e}")
+            logger.error(f"❌ Ошибка соединения get_subscriptions: {e}")
             return None
 
     async def get_subscription_details(self, subscription_id: str):
