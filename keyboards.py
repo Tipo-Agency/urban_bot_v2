@@ -71,3 +71,55 @@ def confirm_freeze_subscription(ticket_id: str = ""):
             ]
         ]
     )
+
+
+def get_subscription_types_keyboard():
+    """Создает клавиатуру с типами подписок"""
+    return ReplyKeyboardMarkup(
+        keyboard=[
+            [KeyboardButton(text="💼 Дневная карта")],
+            [KeyboardButton(text="🌟 Полный день")],
+            [KeyboardButton(text="🏆 Все включено")],
+            [KeyboardButton(text="🏠 В главное меню")]
+        ],
+        resize_keyboard=True,
+        one_time_keyboard=True
+    )
+
+
+def get_subscription_periods_keyboard(subscription_type: str, subscriptions_list: list):
+    """Создает клавиатуру с периодами подписок для выбранного типа"""
+    keyboard = []
+    
+    for subscription in subscriptions_list:
+        # Форматируем кнопку с указанием экономии если есть
+        button_text = f"{subscription['period']} мес. — {subscription['price']} ₽"
+        
+        # Добавляем значок экономии для 6 и 12 месяцев
+        if subscription['period'] == 6:
+            button_text += " 💰"
+        elif subscription['period'] == 12:
+            button_text += " 🔥"
+            
+        keyboard.append([KeyboardButton(text=button_text)])
+    
+    # Добавляем кнопки навигации
+    keyboard.append([KeyboardButton(text="🔙 Назад к типам подписок")])
+    keyboard.append([KeyboardButton(text="🏠 В главное меню")])
+    
+    return ReplyKeyboardMarkup(
+        keyboard=keyboard,
+        resize_keyboard=True,
+        one_time_keyboard=True
+    )
+
+
+def get_subscription_buy_keyboard(subscription_id: str):
+    """Создает инлайн клавиатуру для покупки конкретной подписки"""
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text="✅ Оформить подписку", callback_data=f"buy_subscription:{subscription_id}")],
+            [InlineKeyboardButton(text="🔙 Назад к периодам", callback_data="back_to_periods")],
+            [InlineKeyboardButton(text="🏠 В главное меню", callback_data="back_to_main")]
+        ]
+    )

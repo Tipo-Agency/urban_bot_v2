@@ -5,8 +5,8 @@ from aiogram.fsm.context import FSMContext
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton, ReplyKeyboardMarkup, KeyboardButton, ReplyKeyboardRemove
 
 from db import get_user_token_by_user_id
-from messages import GREET_MESSAGE, get_subscriptions_from_api
-from keyboards import main_menu, get_payment_link_keyboard
+from messages import GREET_MESSAGE, get_subscriptions_from_api, group_subscriptions_by_type, format_subscription_with_savings
+from keyboards import main_menu, get_payment_link_keyboard, get_subscription_types_keyboard, get_subscription_periods_keyboard, get_subscription_buy_keyboard
 from api.requests import FitnessAuthRequest, FitnessSubscriptionRequest
 
 logger = logging.getLogger(__name__)
@@ -16,23 +16,14 @@ router = Router()
 logger.info("🔧 subscriptions_router создан и обработчики зарегистрированы")
 
 
-async def get_subscription_keyboard(user_token: str = ""):
-    """Создает клавиатуру с вариантами подписок из API"""
-    # Получаем реальные данные подписок
+# Глобальные переменные для хранения состояния
+user_subscriptions_data = {}
+user_selected_type = {}
+
+async def get_grouped_subscriptions(user_token: str = ""):
+    """Получает и группирует подписки из API"""
     subscriptions = await get_subscriptions_from_api(user_token)
-    
-    keyboard = []
-    for variant in subscriptions:
-        keyboard.append([KeyboardButton(text=variant['title'])])
-    
-    # Добавляем кнопку возврата в главное меню
-    keyboard.append([KeyboardButton(text="🏠 В главное меню")])
-    
-    return ReplyKeyboardMarkup(
-        keyboard=keyboard,
-        resize_keyboard=True,
-        one_time_keyboard=True
-    ), subscriptions
+    return group_subscriptions_by_type(subscriptions)
 
 
 def get_buy_keyboard(subscription_id: str):
@@ -56,7 +47,11 @@ async def subscriptions_handler(message: Message, state: FSMContext):
     user_data = get_user_token_by_user_id(message.from_user.id)
     user_token = user_data.get('user_token') if user_data else None
     
-    keyboard, subscriptions = await get_subscription_keyboard(user_token)
+    # Получаем и сохраняем сгруппированные подписки
+    grouped_subscriptions = await get_grouped_subscriptions(user_token)
+    user_subscriptions_data[message.from_user.id] = grouped_subscriptions
+    
+    keyboard = get_subscription_types_keyboard()
     await message.answer(GREET_MESSAGE, reply_markup=keyboard)
 
 
@@ -102,105 +97,204 @@ async def back_to_subscriptions_handler(callback: CallbackQuery, state: FSMConte
     user_data = get_user_token_by_user_id(callback.from_user.id)
     user_token = user_data.get('user_token') if user_data else None
     
-    keyboard, subscriptions = await get_subscription_keyboard(user_token)
+    # Получаем и сохраняем сгруппированные подписки
+    grouped_subscriptions = await get_grouped_subscriptions(user_token)
+    user_subscriptions_data[callback.from_user.id] = grouped_subscriptions
+    
+    keyboard = get_subscription_types_keyboard()
     await callback.message.answer(GREET_MESSAGE, reply_markup=keyboard)
     await callback.message.delete()
 
 
-@router.message(lambda message: message.text not in ["Личный кабинет", "Подписки", "Задать вопрос", "🏠 В главное меню", "❌ Завершить диалог"])
-async def subscription_variant_handler(message: Message, state: FSMContext):
-    """Обработка выбора варианта подписки"""
-    logger.info(f"🔍 subscription_variant_handler вызван! user_id={message.from_user.id}, text='{message.text}'")
+# Обработчики для новой логики подписок
+@router.message(F.text.in_(["💼 Дневная карта", "🌟 Полный день", "🏆 Все включено"]))
+async def subscription_type_handler(message: Message, state: FSMContext):
+    """Обработчик выбора типа подписки"""
+    logger.info(f"🔍 subscription_type_handler вызван! user_id={message.from_user.id}, text='{message.text}'")
     
-    # Получаем актуальные данные подписок
-    user_data = get_user_token_by_user_id(message.from_user.id)
-    user_token = user_data.get('user_token') if user_data else None
-    subscriptions = await get_subscriptions_from_api(user_token)
+    # Определяем выбранный тип
+    type_mapping = {
+        "💼 Дневная карта": "Дневная карта",
+        "🌟 Полный день": "Полный день", 
+        "🏆 Все включено": "Все включено"
+    }
     
-    # Находим выбранный тариф по названию
-    selected_variant = None
-    for variant in subscriptions:
-        logger.debug(f"🔍 Проверяем вариант: {variant['title']}")
-        logger.debug(f"🔍 Сравниваем с текстом сообщения: {message.text}")
-        if variant['title'] == message.text:
-            selected_variant = variant
-            break
+    selected_type = type_mapping.get(message.text)
+    if not selected_type:
+        return
+        
+    user_selected_type[message.from_user.id] = selected_type
     
-    if not selected_variant:
+    # Получаем подписки для выбранного типа
+    grouped_subscriptions = user_subscriptions_data.get(message.from_user.id, {})
+    subscriptions_for_type = grouped_subscriptions.get(selected_type, [])
+    
+    if not subscriptions_for_type:
+        await message.answer(f"К сожалению, подписки типа '{selected_type}' сейчас недоступны.", reply_markup=get_subscription_types_keyboard())
         return
     
-    # Получаем детальную информацию о подписке
-    try:
-        fitness_request = FitnessSubscriptionRequest(user_token=user_token)
-        details = await fitness_request.get_subscription_details(selected_variant['sub_id'])
-        logger.debug(f"🔍 Получены детали подписки: {details}")
-        
-        if details and details.get("subscription"):
-            sub_details = details["subscription"]
-            logger.debug(f"🔍 Детали подписки: {sub_details}")
-            
-            # Формируем подробное описание
-            description = f"""
-💳 <b>{sub_details.get('title', selected_variant['title'])}</b>
+    # Форматируем подписки с расчетом экономии
+    monthly_subscription = next((s for s in subscriptions_for_type if s.get('period', 1) == 1), None)
+    formatted_subscriptions = []
+    
+    for subscription in subscriptions_for_type:
+        formatted_sub = format_subscription_with_savings(subscription, monthly_subscription)
+        formatted_subscriptions.append(formatted_sub)
+    
+    # Создаем клавиатуру с периодами
+    keyboard = get_subscription_periods_keyboard(selected_type, formatted_subscriptions)
+    
+    # Формируем сообщение с описанием типа подписки
+    type_descriptions = {
+        "Дневная карта": "💼 <b>Дневная карта</b>\n\nПосещение с 7:00 до 17:00, тренажёрный зал и кардио-зона.",
+        "Полный день": "🌟 <b>Полный день</b>\n\nБезлимитное посещение в любое время, тренажёрный зал и кардио-зона.",
+        "Все включено": "🏆 <b>Все включено</b>\n\nБезлимитное посещение, все групповые программы, спа-зона и скалодром."
+    }
+    
+    description = type_descriptions.get(selected_type, f"<b>{selected_type}</b>")
+    description += "\n\n💰 Выберите период подписки:"
+    
+    await message.answer(description, reply_markup=keyboard)
 
-💰 <b>Стоимость:</b> {sub_details.get('price', selected_variant['price'])} ₽/мес
+
+@router.message(F.text == "🔙 Назад к типам подписок")
+async def back_to_types_handler(message: Message, state: FSMContext):
+    """Возврат к выбору типов подписок"""
+    keyboard = get_subscription_types_keyboard()
+    await message.answer(GREET_MESSAGE, reply_markup=keyboard)
+
+
+@router.message(lambda message: message.text and ("мес. —" in message.text))
+async def subscription_period_handler(message: Message, state: FSMContext):
+    """Обработчик выбора периода подписки"""
+    logger.info(f"🔍 subscription_period_handler вызван! user_id={message.from_user.id}, text='{message.text}'")
+    
+    # Извлекаем период и цену из текста кнопки
+    try:
+        # Формат: "1 мес. — 2400 ₽" или "6 мес. — 13900 ₽ 💰"
+        parts = message.text.split(" мес. — ")
+        if len(parts) != 2:
+            return
+            
+        period = int(parts[0])
+        price_part = parts[1].split(" ")[0]  # Убираем эмодзи
+        price = int(price_part)
+        
+        # Находим соответствующую подписку
+        selected_type = user_selected_type.get(message.from_user.id)
+        if not selected_type:
+            return
+            
+        grouped_subscriptions = user_subscriptions_data.get(message.from_user.id, {})
+        subscriptions_for_type = grouped_subscriptions.get(selected_type, [])
+        
+        selected_subscription = None
+        for subscription in subscriptions_for_type:
+            if subscription.get('period') == period and subscription.get('price') == price:
+                selected_subscription = subscription
+                break
+                
+        if not selected_subscription:
+            return
+            
+        # Формируем детальное описание подписки
+        monthly_subscription = next((s for s in subscriptions_for_type if s.get('period', 1) == 1), None)
+        formatted_sub = format_subscription_with_savings(selected_subscription, monthly_subscription)
+        
+        # Рассчитываем экономию если есть
+        savings_info = ""
+        if period > 1 and monthly_subscription:
+            monthly_price = monthly_subscription.get('price', 0)
+            if monthly_price > 0:
+                total_monthly_cost = monthly_price * period
+                savings = total_monthly_cost - price
+                if savings > 0:
+                    savings_percent = round((savings / total_monthly_cost) * 100)
+                    savings_info = f"\n\n💰 <b>Ваша экономия:</b> {savings} ₽ ({savings_percent}%)"
+        
+        # Получаем детальную информацию о подписке
+        user_data = get_user_token_by_user_id(message.from_user.id)
+        user_token = user_data.get('user_token') if user_data else None
+        
+        description = f"""
+💳 <b>{formatted_sub['title']}</b>
+
+💰 <b>Стоимость:</b> {price} ₽
+📅 <b>Период:</b> {period} мес.
 
 📋 <b>Описание:</b>
-{sub_details.get('description', 'Описание недоступно')}
+{selected_subscription.get('description', 'Описание недоступно')}
 
 ⏰ <b>Время доступа:</b>
-{sub_details.get('available_time', 'Не указано')}
-
-📅 <b>Период действия:</b>
-{sub_details.get('validity_period', 'Не указано')}
-
-⚠️ <b>Ограничения:</b>
-{sub_details.get('restriction', 'Нет ограничений')}
-"""
-            
-            # Добавляем информацию о вступительном взносе
-            if sub_details.get('fee'):
-                fee = sub_details['fee']
-                description += f"\n💸 <b>Вступительный взнос:</b> {fee.get('price', '3000')} ₽"
-            
-            await message.answer(
-                description, 
-                reply_markup=get_buy_keyboard(selected_variant['sub_id'])
-            )
-        else:
-            # Если детали не получены, показываем базовую информацию
-            basic_info = f"""
-💳 <b>{selected_variant['title']}</b>
-
-💰 <b>Стоимость:</b> {selected_variant['price']} ₽/мес
-
-📋 <b>Описание:</b>
-{selected_variant['description']}
-
-💸 <b>Вступительный взнос:</b> 3000 ₽
-"""
-            await message.answer(
-                basic_info, 
-                reply_markup=get_buy_keyboard(selected_variant['sub_id'])
-            )
-            
-    except Exception as e:
-        logger.error(f"Ошибка получения деталей подписки: {e}")
-        # Показываем базовую информацию при ошибке
-        basic_info = f"""
-💳 <b>{selected_variant['title']}</b>
-
-💰 <b>Стоимость:</b> {selected_variant['price']} ₽/мес
-
-📋 <b>Описание:</b>
-{selected_variant['description']}
-
-💸 <b>Вступительный взнос:</b> 3000 ₽
-"""
+{selected_subscription.get('available_time', 'Не указано')}
+{savings_info}
+        """
+        
+        # Добавляем информацию о вступительном взносе
+        fee = selected_subscription.get('fee', {})
+        if fee and fee.get('price'):
+            description += f"\n\n💸 <b>Вступительный взнос:</b> {fee.get('price')} ₽"
+        
         await message.answer(
-            basic_info, 
-            reply_markup=get_buy_keyboard(selected_variant['sub_id'])
+            description.strip(),
+            reply_markup=get_subscription_buy_keyboard(selected_subscription['sub_id'])
         )
+        
+    except (ValueError, IndexError) as e:
+        logger.error(f"Ошибка парсинга периода подписки: {e}")
+        return
+
+
+@router.callback_query(F.data == "back_to_periods")
+async def back_to_periods_handler(callback: CallbackQuery, state: FSMContext):
+    """Возврат к выбору периодов подписки"""
+    await callback.answer()
+    
+    selected_type = user_selected_type.get(callback.from_user.id)
+    if not selected_type:
+        # Если тип не выбран, возвращаемся к типам
+        keyboard = get_subscription_types_keyboard()
+        await callback.message.edit_text(GREET_MESSAGE, reply_markup=None)
+        await callback.message.answer(GREET_MESSAGE, reply_markup=keyboard)
+        return
+        
+    # Получаем подписки для выбранного типа
+    grouped_subscriptions = user_subscriptions_data.get(callback.from_user.id, {})
+    subscriptions_for_type = grouped_subscriptions.get(selected_type, [])
+    
+    # Форматируем подписки с расчетом экономии
+    monthly_subscription = next((s for s in subscriptions_for_type if s.get('period', 1) == 1), None)
+    formatted_subscriptions = []
+    
+    for subscription in subscriptions_for_type:
+        formatted_sub = format_subscription_with_savings(subscription, monthly_subscription)
+        formatted_subscriptions.append(formatted_sub)
+    
+    # Создаем клавиатуру с периодами
+    keyboard = get_subscription_periods_keyboard(selected_type, formatted_subscriptions)
+    
+    # Формируем сообщение с описанием типа подписки
+    type_descriptions = {
+        "Дневная карта": "💼 <b>Дневная карта</b>\n\nПосещение с 7:00 до 17:00, тренажёрный зал и кардио-зона.",
+        "Полный день": "🌟 <b>Полный день</b>\n\nБезлимитное посещение в любое время, тренажёрный зал и кардио-зона.",
+        "Все включено": "🏆 <b>Все включено</b>\n\nБезлимитное посещение, все групповые программы, спа-зона и скалодром."
+    }
+    
+    description = type_descriptions.get(selected_type, f"<b>{selected_type}</b>")
+    description += "\n\n💰 Выберите период подписки:"
+    
+    await callback.message.edit_text(description, reply_markup=None)
+    await callback.message.answer(description, reply_markup=keyboard)
+
+
+@router.message(lambda message: message.text not in ["Личный кабинет", "Подписки", "Задать вопрос", "🏠 В главное меню", "❌ Завершить диалог", "💼 Дневная карта", "🌟 Полный день", "🏆 Все включено", "🔙 Назад к типам подписок"] and not (message.text and "мес. —" in message.text))
+async def subscription_variant_handler(message: Message, state: FSMContext):
+    """Обработка старого выбора варианта подписки (fallback)"""
+    logger.info(f"🔍 subscription_variant_handler (fallback) вызван! user_id={message.from_user.id}, text='{message.text}'")
+    
+    # Возвращаем к новому интерфейсу
+    keyboard = get_subscription_types_keyboard()
+    await message.answer("Используйте новый интерфейс подписок:", reply_markup=keyboard)
 
 
 @router.callback_query(F.data.regexp(r"^buy_subscription:(.+)$"))
