@@ -1,5 +1,6 @@
 import logging
 from aiogram.types import ReplyKeyboardMarkup, KeyboardButton, InlineKeyboardMarkup, InlineKeyboardButton
+from messages import calculate_savings_percentage
 
 logger = logging.getLogger(__name__)
 
@@ -97,9 +98,11 @@ def get_subscription_periods_keyboard(subscription_type: str, subscriptions_list
         
         # Добавляем значок экономии для 6 и 12 месяцев
         if subscription['period'] == 6:
-            button_text += " 💰"
+            saving_percent = calculate_savings_percentage(subscription['price'], subscription['price'] * 6, subscription['period'])
+            button_text += f" (Экономия {saving_percent}%)"
         elif subscription['period'] == 12:
-            button_text += " 🔥"
+            saving_percent = calculate_savings_percentage(subscription['price'], subscription['price'] * 12, subscription['period'])
+            button_text += f" (Экономия {saving_percent}%)"
             
         keyboard.append([KeyboardButton(text=button_text)])
     
