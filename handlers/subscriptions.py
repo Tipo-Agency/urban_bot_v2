@@ -322,16 +322,30 @@ async def buy_subscription_handler(callback: CallbackQuery):
         sub_fee_id = selected_subscription.get('fee', {}).get('id', '')
         sub_fee_title = selected_subscription.get('fee', {}).get('title', '')
         sub_fee_price = selected_subscription.get('fee', {}).get('price', 0)
-        total_price = int(sub_fee_price) + int(sub_price)
+        
+        # Безопасное преобразование в int
+        try:
+            fee_price_int = int(sub_fee_price) if sub_fee_price and str(sub_fee_price).strip() else 0
+            sub_price_int = int(sub_price) if sub_price else 0
+            total_price = fee_price_int + sub_price_int
+        except (ValueError, TypeError):
+            fee_price_int = 0
+            sub_price_int = int(sub_price) if sub_price else 0
+            total_price = sub_price_int
 
         pay_message = f"""
 💳 <b>Оформление подписки</b>
 
 Вы выбрали: <b>{sub_name}</b>
 
-💰 К оплате:
-• {sub_fee_title}: {sub_fee_price} ₽ (разово)
-• Абонемент на месяц: {sub_price} ₽
+💰 К оплате:"""
+        
+        # Добавляем fee только если есть
+        if fee_price_int > 0:
+            pay_message += f"\n• {sub_fee_title}: {fee_price_int} ₽ (разово)"
+        
+        pay_message += f"""
+• Абонемент на месяц: {sub_price_int} ₽
 ———————————————————
 ИТОГО: {total_price} ₽
 
@@ -342,10 +356,17 @@ async def buy_subscription_handler(callback: CallbackQuery):
             await callback.message.answer("❌ Ошибка при получении ссылки на оплату. Пожалуйста, попробуйте позже.", reply_markup=main_menu())
         else:
             fitness_request = FitnessSubscriptionRequest(user_token=user_token)
-            url = await fitness_request.get_payment_link(
-                subscription_id=sub_id,
-                fee_id=sub_fee_id,
-            )
+            
+            # Передаем fee_id только если он есть
+            if sub_fee_id and sub_fee_id.strip():
+                url = await fitness_request.get_payment_link(
+                    subscription_id=sub_id,
+                    fee_id=sub_fee_id,
+                )
+            else:
+                url = await fitness_request.get_payment_link(
+                    subscription_id=sub_id,
+                )
             if not url:
                 await callback.message.answer("❌ Ошибка при получении ссылки на оплату. Пожалуйста, попробуйте позже.", reply_markup=main_menu())
             else:

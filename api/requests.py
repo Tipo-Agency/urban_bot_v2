@@ -274,16 +274,19 @@ class FitnessSubscriptionRequest(FitnessAuthRequest):
     async def get_payment_link(
         self,
         subscription_id: str,
-        fee_id: str,
+        fee_id: str = None,
     ):
         url = f"{self.BASE_URL}/payment_link"
         headers = {"apikey": self.API_KEY, "usertoken": self.user_token}
-        data = {
-            "cart": [
-                {"purchase_id": fee_id, "count": 1},
-                {"purchase_id": subscription_id, "count": 1},
-            ],
-        }
+        
+        # Создаем корзину с подпиской
+        cart = [{"purchase_id": subscription_id, "count": 1}]
+        
+        # Добавляем fee только если он есть
+        if fee_id and fee_id.strip():
+            cart.append({"purchase_id": fee_id, "count": 1})
+        
+        data = {"cart": cart}
         try:
             async with ClientSession(auth=self.auth) as session:
                 async with session.post(url, headers=headers, json=data) as response:
