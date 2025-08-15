@@ -92,17 +92,25 @@ def get_subscription_periods_keyboard(subscription_type: str, subscriptions_list
     """Создает клавиатуру с периодами подписок для выбранного типа"""
     keyboard = []
     
+    # Находим месячную подписку для расчета экономии
+    monthly_subscription = None
+    for sub in subscriptions_list:
+        if sub['period'] == 1:
+            monthly_subscription = sub
+            break
+    
     for subscription in subscriptions_list:
         # Форматируем кнопку с указанием экономии если есть
-        button_text = f"{subscription['period']} мес. — {subscription['price']} ₽"
+        period = subscription['period']
+        price = subscription['price']
+        button_text = f"{period} мес. — {price} ₽"
         
-        # Добавляем значок экономии для 6 и 12 месяцев
-        if subscription['period'] == 6:
-            saving_percent = calculate_savings_percentage(subscription['price'], subscription['price'] * 6, subscription['period'])
-            button_text += f" (Экономия {saving_percent}%)"
-        elif subscription['period'] == 12:
-            saving_percent = calculate_savings_percentage(subscription['price'], subscription['price'] * 12, subscription['period'])
-            button_text += f" (Экономия {saving_percent}%)"
+        # Добавляем экономию для подписок больше 1 месяца
+        if period > 1 and monthly_subscription:
+            monthly_price = monthly_subscription['price']
+            saving_percent = calculate_savings_percentage(monthly_price, price, period)
+            if saving_percent > 0:
+                button_text += f" (Экономия {saving_percent}%)"
             
         keyboard.append([KeyboardButton(text=button_text)])
     
