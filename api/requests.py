@@ -286,7 +286,7 @@ class FitnessSubscriptionRequest(FitnessAuthRequest):
         if fee_id and fee_id.strip():
             cart.append({"purchase_id": fee_id, "count": 1})
         
-        data = {"cart": cart}
+        data = {"cart": cart, "link_card": True, "refund_sum": False}
         try:
             async with ClientSession(auth=self.auth) as session:
                 async with session.post(url, headers=headers, json=data) as response:
