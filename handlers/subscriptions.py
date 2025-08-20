@@ -107,7 +107,7 @@ async def back_to_subscriptions_handler(callback: CallbackQuery, state: FSMConte
 
 
 # Обработчики для новой логики подписок
-@router.message(F.text.in_(["🔍 Другое", "💼 Дневная карта", "🌟 Полный день", "🏆 Все включено"]))
+@router.message(F.text.in_(["Другое", "Дневная карта", "Полный день", "Все включено"]))
 async def subscription_type_handler(message: Message, state: FSMContext):
     """Обработчик выбора типа подписки"""
     logger.info(f"🔍 subscription_type_handler вызван! user_id={message.from_user.id}, text='{message.text}'")
@@ -431,7 +431,7 @@ async def back_to_periods_handler(callback: CallbackQuery, state: FSMContext):
     await callback.message.answer(description, reply_markup=keyboard)
 
 
-@router.message(lambda message: message.text not in ["Личный кабинет", "Подписки", "Задать вопрос", "🏠 В главное меню", "❌ Завершить диалог", "🔍 Другое", "💼 Дневная карта", "🌟 Полный день", "🏆 Все включено", "🔙 Назад к типам подписок"] and not (message.text and "мес. —" in message.text))
+@router.message(lambda message: message.text not in ["Личный кабинет", "Подписки", "Задать вопрос", "🏠 В главное меню", "❌ Завершить диалог", "Другое", "Дневная карта", "Полный день", "Все включено", "🔙 Назад к типам подписок"] and not (message.text and "мес. —" in message.text))
 async def subscription_variant_handler(message: Message, state: FSMContext):
     """Обработка старого выбора варианта подписки (fallback)"""
     logger.info(f"🔍 subscription_variant_handler (fallback) вызван! user_id={message.from_user.id}, text='{message.text}'")
