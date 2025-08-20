@@ -194,9 +194,7 @@ def group_subscriptions_by_type(subscriptions_data):
         title = subscription.get("title", "")
         
         # Определяем тип подписки по названию
-        if "Тест" in title:
-            subscription_type = "Тест"
-        elif "Дневная карта" in title:
+        if "Дневная карта" in title:
             subscription_type = "Дневная карта"
         elif "Полный день" in title:
             subscription_type = "Полный день"
@@ -224,7 +222,7 @@ def group_subscriptions_by_type(subscriptions_data):
     
     # Сортируем каждую группу по периоду (1, 6, 12 месяцев)
     for group_type in grouped:
-        if group_type != "Тест":  # Тестовая подписка не сортируется по периоду
+        if group_type != "Другое":  # Категория "Другое" не сортируется по периоду
             grouped[group_type].sort(key=lambda x: x.get("period", 1))
     
     return grouped

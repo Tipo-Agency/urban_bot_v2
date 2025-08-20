@@ -78,11 +78,10 @@ def get_subscription_types_keyboard():
     """Создает клавиатуру с типами подписок"""
     return ReplyKeyboardMarkup(
         keyboard=[
-            
             [KeyboardButton(text="Дневная карта")],
             [KeyboardButton(text="Полный день")],
             [KeyboardButton(text="Все включено")],
-            [KeyboardButton(text="Тестовая подписка")],
+            [KeyboardButton(text="Другое")],
             [KeyboardButton(text="В главное меню")]
         ],
         resize_keyboard=True,
