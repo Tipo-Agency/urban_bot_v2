@@ -107,13 +107,14 @@ async def back_to_subscriptions_handler(callback: CallbackQuery, state: FSMConte
 
 
 # Обработчики для новой логики подписок
-@router.message(F.text.in_(["💼 Дневная карта", "🌟 Полный день", "🏆 Все включено"]))
+@router.message(F.text.in_(["🧪 Тестовая подписка", "💼 Дневная карта", "🌟 Полный день", "🏆 Все включено"]))
 async def subscription_type_handler(message: Message, state: FSMContext):
     """Обработчик выбора типа подписки"""
     logger.info(f"🔍 subscription_type_handler вызван! user_id={message.from_user.id}, text='{message.text}'")
     
     # Определяем выбранный тип
     type_mapping = {
+        "🧪 Тестовая подписка": "Тест",
         "💼 Дневная карта": "Дневная карта",
         "🌟 Полный день": "Полный день", 
         "🏆 Все включено": "Все включено"
@@ -131,6 +132,12 @@ async def subscription_type_handler(message: Message, state: FSMContext):
     
     if not subscriptions_for_type:
         await message.answer(f"К сожалению, подписки типа '{selected_type}' сейчас недоступны.", reply_markup=get_subscription_types_keyboard())
+        return
+    
+    # Для тестовой подписки показываем сразу детали
+    if selected_type == "Тест":
+        subscription = subscriptions_for_type[0]  # Тестовая подписка одна
+        await show_test_subscription_details(message, subscription)
         return
     
     # Форматируем подписки с расчетом экономии
@@ -155,6 +162,46 @@ async def subscription_type_handler(message: Message, state: FSMContext):
     description += "\n\n💰 Выберите период подписки:"
     
     await message.answer(description, reply_markup=keyboard)
+
+
+async def show_test_subscription_details(message: Message, subscription: dict):
+    """Показывает детали тестовой подписки"""
+    title = subscription.get('title', 'Тестовая подписка')
+    price = subscription.get('price', 0)
+    description = subscription.get('description', '')
+    available_time = subscription.get('available_time', '')
+    validity = subscription.get('validity', {})
+    services = subscription.get('services', [])
+    
+    # Формируем описание
+    details = f"""
+🧪 <b>{title}</b>
+
+💰 <b>Стоимость:</b> {price} ₽
+⏰ <b>Срок действия:</b> {validity.get('validity_description', '1 день')}
+
+📋 <b>Описание:</b>
+{description if description else 'Тестовая подписка для знакомства с клубом'}
+
+⏰ <b>Время доступа:</b>
+{available_time if available_time else 'Не указано'}
+"""
+    
+    # Добавляем информацию об услугах
+    if services:
+        details += "\n🎁 <b>Включенные услуги:</b>\n"
+        for service in services:
+            details += f"• {service.get('title', '')} - {service.get('count', 1)} шт.\n"
+    
+    # Добавляем информацию о вступительном взносе
+    fee = subscription.get('fee', {})
+    if fee and fee.get('price'):
+        details += f"\n💸 <b>Вступительный взнос:</b> {fee.get('price')} ₽"
+    
+    # Создаем клавиатуру для покупки
+    keyboard = get_subscription_buy_keyboard(subscription['sub_id'])
+    
+    await message.answer(details.strip(), reply_markup=keyboard)
 
 
 @router.message(F.text == "🔙 Назад к типам подписок")
@@ -257,6 +304,13 @@ async def back_to_periods_handler(callback: CallbackQuery, state: FSMContext):
         await callback.message.edit_text(GREET_MESSAGE, reply_markup=None)
         await callback.message.answer(GREET_MESSAGE, reply_markup=keyboard)
         return
+    
+    # Для тестовой подписки возвращаемся к типам
+    if selected_type == "Тест":
+        keyboard = get_subscription_types_keyboard()
+        await callback.message.edit_text(GREET_MESSAGE, reply_markup=None)
+        await callback.message.answer(GREET_MESSAGE, reply_markup=keyboard)
+        return
         
     # Получаем подписки для выбранного типа
     grouped_subscriptions = user_subscriptions_data.get(callback.from_user.id, {})
@@ -287,7 +341,7 @@ async def back_to_periods_handler(callback: CallbackQuery, state: FSMContext):
     await callback.message.answer(description, reply_markup=keyboard)
 
 
-@router.message(lambda message: message.text not in ["Личный кабинет", "Подписки", "Задать вопрос", "🏠 В главное меню", "❌ Завершить диалог", "💼 Дневная карта", "🌟 Полный день", "🏆 Все включено", "🔙 Назад к типам подписок"] and not (message.text and "мес. —" in message.text))
+@router.message(lambda message: message.text not in ["Личный кабинет", "Подписки", "Задать вопрос", "🏠 В главное меню", "❌ Завершить диалог", "🧪 Тестовая подписка", "💼 Дневная карта", "🌟 Полный день", "🏆 Все включено", "🔙 Назад к типам подписок"] and not (message.text and "мес. —" in message.text))
 async def subscription_variant_handler(message: Message, state: FSMContext):
     """Обработка старого выбора варианта подписки (fallback)"""
     logger.info(f"🔍 subscription_variant_handler (fallback) вызван! user_id={message.from_user.id}, text='{message.text}'")

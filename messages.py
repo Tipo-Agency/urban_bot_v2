@@ -67,7 +67,8 @@ async def get_subscriptions_from_api(user_token: str = None):
                     if available_time:
                         description += f"\n{available_time}"
                 
-                subscriptions.append({
+                # Добавляем недостающие поля для совместимости
+                subscription_data = {
                     "id": i,
                     "sub_id": sub.get("id", ""),  # Сохраняем оригинальный ID из API
                     "title": sub.get("title", "Тариф"),
@@ -78,8 +79,12 @@ async def get_subscriptions_from_api(user_token: str = None):
                         "id": sub.get("fee", {}).get("id", ""),
                         "title": sub.get("fee", {}).get("title", ""),
                         "price": sub.get("fee", {}).get("price", ""),
-                    }
-                })
+                    },
+                    "validity": sub.get("validity", {}),
+                    "services": sub.get("services", [])
+                }
+                
+                subscriptions.append(subscription_data)
             
             logger.debug(f"✅ Получено {len(subscriptions)} подписок из API")
             return subscriptions
@@ -189,7 +194,9 @@ def group_subscriptions_by_type(subscriptions_data):
         title = subscription.get("title", "")
         
         # Определяем тип подписки по названию
-        if "Дневная карта" in title:
+        if "Тест" in title:
+            subscription_type = "Тест"
+        elif "Дневная карта" in title:
             subscription_type = "Дневная карта"
         elif "Полный день" in title:
             subscription_type = "Полный день"
@@ -217,7 +224,8 @@ def group_subscriptions_by_type(subscriptions_data):
     
     # Сортируем каждую группу по периоду (1, 6, 12 месяцев)
     for group_type in grouped:
-        grouped[group_type].sort(key=lambda x: x.get("period", 1))
+        if group_type != "Тест":  # Тестовая подписка не сортируется по периоду
+            grouped[group_type].sort(key=lambda x: x.get("period", 1))
     
     return grouped
 
